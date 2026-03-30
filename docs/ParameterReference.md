@@ -32,7 +32,7 @@
 
 ## Exits
 - `InpTP1_R`, `InpTP2_R`
-- `InpTrailATRFrac` (reserved for next trailing extension)
+- `InpTrailATRFrac` (active ATR trailing-stop distance fraction on M5)
 - `InpMaxHoldMinutes`
 - `InpFlattenAtSessionEnd`
 - `InpMoveToBEAfterTP1`

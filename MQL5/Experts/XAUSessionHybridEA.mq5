@@ -439,7 +439,7 @@ void OnTick()
       return;
      }
 
-    double volume=0.0;
+   double volume=0.0;
    if(!XSH_CalcVolumeByRisk(g_spec,g_symbol,trade_sig.direction,trade_sig.entry,trade_sig.stop_loss,InpRiskPct,InpAllowMinLotOverride,volume,reason))
       {
        XSH_Log("WARN",StringFormat("Sizing blocked: %s",reason));
