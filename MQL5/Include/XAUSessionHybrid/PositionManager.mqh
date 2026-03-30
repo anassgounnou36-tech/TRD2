@@ -3,6 +3,7 @@
 
 #include <Trade/Trade.mqh>
 #include <XAUSessionHybrid/Types.mqh>
+#include <XAUSessionHybrid/IndicatorEngine.mqh>
 
 bool XSH_ModifySLSafe(const XSH_SymbolSpecs &spec,
                       const ulong ticket,
@@ -34,6 +35,8 @@ bool XSH_ModifySLSafe(const XSH_SymbolSpecs &spec,
 void XSH_ManageOpenPosition(const XSH_SymbolSpecs &spec,
                             const ulong magic,
                             const double tp1_r,
+                            const double trail_atr_frac,
+                            const int atr_period,
                             const bool move_to_be,
                             const int max_hold_minutes)
   {
@@ -54,8 +57,6 @@ void XSH_ManageOpenPosition(const XSH_SymbolSpecs &spec,
          continue;
         }
 
-      if(!move_to_be) continue;
-
       long ptype=PositionGetInteger(POSITION_TYPE);
       double open=PositionGetDouble(POSITION_PRICE_OPEN);
       double sl=PositionGetDouble(POSITION_SL);
@@ -66,10 +67,35 @@ void XSH_ManageOpenPosition(const XSH_SymbolSpecs &spec,
 
       double risk=MathAbs(open-sl);
       if(risk<=0.0) continue;
-      double target=(ptype==POSITION_TYPE_BUY?open+risk*tp1_r:open-risk*tp1_r);
-      bool reached=(ptype==POSITION_TYPE_BUY?cur>=target:cur<=target);
-      if(reached)
-         XSH_ModifySLSafe(spec,ticket,open,tp);
+      if(move_to_be)
+        {
+         double target=(ptype==POSITION_TYPE_BUY?open+risk*tp1_r:open-risk*tp1_r);
+         bool reached=(ptype==POSITION_TYPE_BUY?cur>=target:cur<=target);
+         if(reached)
+            XSH_ModifySLSafe(spec,ticket,open,tp);
+        }
+
+      double atr_m5=0.0;
+      if(trail_atr_frac>0.0 && XSH_ReadATR(spec.symbol,PERIOD_M5,atr_period,1,atr_m5))
+        {
+         double trail_dist=atr_m5*trail_atr_frac;
+         if(trail_dist>0.0)
+           {
+            double proposed_sl=sl;
+            if(ptype==POSITION_TYPE_BUY)
+              {
+               double candidate=cur-trail_dist;
+               if(candidate>sl) proposed_sl=candidate;
+              }
+            else
+              {
+               double candidate=cur+trail_dist;
+               if(candidate<sl || sl<=0.0) proposed_sl=candidate;
+              }
+            if(MathAbs(proposed_sl-sl)>spec.point)
+               XSH_ModifySLSafe(spec,ticket,proposed_sl,tp);
+           }
+        }
      }
   }
 

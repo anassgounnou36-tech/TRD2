@@ -37,6 +37,8 @@ input int    InpMaxTradesPerDay = 4;
 input int    InpMaxTradesPerSession = 2;
 input bool   InpEnableDailyProfitLock = true;
 input double InpDailyProfitLockR = 2.0;
+input bool   InpDailyLossUseEquity = true;
+input bool   InpAllowMinLotOverride = false;
 
 input double InpTP1_R = 1.0;
 input double InpTP2_R = 2.0;

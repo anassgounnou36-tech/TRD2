@@ -19,11 +19,26 @@ bool XSH_BuildOpeningRange(const string symbol,
       return false;
      }
 
-   int bars_needed=(range_minutes/5);
+   int tf_secs=PeriodSeconds(tf);
+   if(tf_secs<=0) return false;
+   int bars_needed=(range_minutes*60)/tf_secs;
    if(bars_needed<1) bars_needed=1;
 
-   int start_shift=iBarShift(symbol,tf,or_state.end_time,false);
-   if(start_shift<0) return false;
+   int first_shift=iBarShift(symbol,tf,session_start,false);
+   if(first_shift<0) return false;
+   datetime first_time=iTime(symbol,tf,first_shift);
+   if(first_time!=session_start)
+     {
+      or_state.built=false;
+      return false;
+     }
+
+   int end_shift=iBarShift(symbol,tf,or_state.end_time,false);
+   if(end_shift<0) return false;
+   datetime end_shift_time=iTime(symbol,tf,end_shift);
+   int start_shift=end_shift;
+   if(end_shift_time==or_state.end_time)
+      start_shift=end_shift+1;
 
    double hi=XSH_HighestHigh(symbol,tf,start_shift,bars_needed);
    double lo=XSH_LowestLow(symbol,tf,start_shift,bars_needed);

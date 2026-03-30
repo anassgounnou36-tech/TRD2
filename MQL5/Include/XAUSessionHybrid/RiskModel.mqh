@@ -12,6 +12,7 @@ void XSH_ResetDailyStateIfNeeded(XSH_DailyRiskState &st,const datetime now)
      {
       st.day_tag=tag;
       st.day_start_balance=AccountInfoDouble(ACCOUNT_BALANCE);
+      st.day_start_equity=AccountInfoDouble(ACCOUNT_EQUITY);
       st.trades_today=0;
       st.losses_today=0;
       st.blocked=false;
@@ -24,12 +25,16 @@ bool XSH_CheckDailyGuards(XSH_DailyRiskState &st,
                           const int max_trades_day,
                           const bool enable_profit_lock,
                           const double daily_profit_lock_r,
-                          const double risk_pct)
+                          const double risk_pct,
+                          const bool use_equity)
   {
    double bal=AccountInfoDouble(ACCOUNT_BALANCE);
+   double eq=AccountInfoDouble(ACCOUNT_EQUITY);
+   double base=use_equity?st.day_start_equity:st.day_start_balance;
+   double now_value=use_equity?eq:bal;
    double dd_pct=0.0;
-   if(st.day_start_balance>0.0)
-      dd_pct=(st.day_start_balance-bal)/st.day_start_balance*100.0;
+   if(base>0.0)
+      dd_pct=(base-now_value)/base*100.0;
 
    if(dd_pct>=max_daily_loss_pct)
      {
@@ -47,8 +52,8 @@ bool XSH_CheckDailyGuards(XSH_DailyRiskState &st,
 
    if(enable_profit_lock && risk_pct>0.0)
      {
-      double pnl=bal-st.day_start_balance;
-      double unit=st.day_start_balance*(risk_pct/100.0);
+      double pnl=now_value-base;
+      double unit=base*(risk_pct/100.0);
       if(unit>0.0 && pnl>=unit*daily_profit_lock_r)
         {
          st.blocked=true;
@@ -68,6 +73,7 @@ bool XSH_CalcVolumeByRisk(const XSH_SymbolSpecs &spec,
                           const double entry,
                           const double stop,
                           const double risk_pct,
+                          const bool allow_min_override,
                           double &volume,
                           string &reason)
   {
@@ -102,6 +108,11 @@ bool XSH_CalcVolumeByRisk(const XSH_SymbolSpecs &spec,
      }
 
    double raw=risk_money/loss_per_lot;
+   if(raw<spec.volume_min && !allow_min_override)
+     {
+      reason="Raw risk lot below broker minimum (blocked)";
+      return false;
+     }
    double norm=XSH_NormalizeVolume(spec,raw);
    if(norm<spec.volume_min)
      {

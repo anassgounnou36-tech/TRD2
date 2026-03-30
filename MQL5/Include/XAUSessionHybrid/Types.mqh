@@ -60,6 +60,7 @@ struct XSH_Signal
    XSH_TradeDirection direction;
    double entry;
    double stop_loss;
+   double take_profit;
    double risk_per_lot;
    string reason;
   };
@@ -90,6 +91,7 @@ struct XSH_DailyRiskState
   {
    int day_tag;
    double day_start_balance;
+   double day_start_equity;
    int trades_today;
    int losses_today;
    bool blocked;
