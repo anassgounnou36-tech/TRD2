@@ -28,7 +28,7 @@ bool XSH_ModifySLSafe(const XSH_SymbolSpecs &spec,
 
    CTrade tr;
    tr.SetExpertMagicNumber((long)PositionGetInteger(POSITION_MAGIC));
-   return tr.PositionModify(ticket,NormalizeDouble(new_sl,spec.digits),current_tp);
+   return tr.PositionModify(spec.symbol,NormalizeDouble(new_sl,spec.digits),current_tp);
   }
 
 void XSH_ManageOpenPosition(const XSH_SymbolSpecs &spec,

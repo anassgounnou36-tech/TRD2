@@ -8,7 +8,9 @@ bool XSH_LoadSymbolSpecs(const string symbol, XSH_SymbolSpecs &spec)
    spec.symbol=symbol;
    spec.valid=false;
 
-   if(!SymbolInfoInteger(symbol,SYMBOL_DIGITS,spec.digits)) return false;
+   long v=0;
+   if(!SymbolInfoInteger(symbol,SYMBOL_DIGITS,v)) return false;
+   spec.digits=(int)v;
    if(!SymbolInfoDouble(symbol,SYMBOL_POINT,spec.point)) return false;
    if(!SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_SIZE,spec.tick_size)) return false;
    if(!SymbolInfoDouble(symbol,SYMBOL_TRADE_TICK_VALUE,spec.tick_value)) return false;
@@ -17,7 +19,6 @@ bool XSH_LoadSymbolSpecs(const string symbol, XSH_SymbolSpecs &spec)
    if(!SymbolInfoDouble(symbol,SYMBOL_VOLUME_MAX,spec.volume_max)) return false;
    if(!SymbolInfoDouble(symbol,SYMBOL_VOLUME_STEP,spec.volume_step)) return false;
 
-   long v=0;
    if(!SymbolInfoInteger(symbol,SYMBOL_TRADE_STOPS_LEVEL,v)) return false;
    spec.stops_level_points=(int)v;
    if(!SymbolInfoInteger(symbol,SYMBOL_TRADE_FREEZE_LEVEL,v)) return false;
@@ -37,7 +38,14 @@ double XSH_NormalizeVolume(const XSH_SymbolSpecs &spec,double volume)
    double normalized=steps*spec.volume_step;
    normalized=MathMax(normalized,spec.volume_min);
    normalized=MathMin(normalized,spec.volume_max);
-   return NormalizeDouble(normalized,2);
+   int vol_digits=0;
+   double s=spec.volume_step;
+   while(vol_digits<8 && MathAbs(s-MathRound(s))>1e-8)
+     {
+      s*=10.0;
+      vol_digits++;
+     }
+   return NormalizeDouble(normalized,vol_digits);
   }
 
 #endif
