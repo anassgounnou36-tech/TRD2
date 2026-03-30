@@ -108,12 +108,21 @@ bool XSH_CalcVolumeByRisk(const XSH_SymbolSpecs &spec,
      }
 
    double raw=risk_money/loss_per_lot;
-   if(raw<spec.volume_min && !allow_min_override)
+   bool below_min=(raw<spec.volume_min);
+   if(below_min && !allow_min_override)
      {
       reason="Raw risk lot below broker minimum (blocked)";
       return false;
      }
-   double norm=XSH_NormalizeVolume(spec,raw);
+
+   double sizing_input=raw;
+   if(below_min && allow_min_override)
+     {
+      sizing_input=spec.volume_min;
+      reason=StringFormat("Override: forced broker minimum lot %.2f (raw %.4f)",spec.volume_min,raw);
+     }
+
+   double norm=XSH_NormalizeVolume(spec,sizing_input);
    if(norm<spec.volume_min)
      {
       reason="Normalized lot below minimum";

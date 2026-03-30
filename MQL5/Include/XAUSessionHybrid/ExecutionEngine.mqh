@@ -69,7 +69,8 @@ bool XSH_SendMarketOrder(const XSH_SymbolSpecs &spec,
    bool check_ok=OrderCheck(req,chk);
    if(check_ok)
      {
-      if(chk.retcode!=TRADE_RETCODE_DONE && chk.retcode!=TRADE_RETCODE_DONE_PARTIAL && chk.retcode!=0)
+      bool check_accept=(chk.retcode==TRADE_RETCODE_DONE || chk.retcode==TRADE_RETCODE_DONE_PARTIAL || chk.retcode==0);
+      if(!check_accept)
         {
          reason=StringFormat("OrderCheck reject retcode=%d comment=%s",chk.retcode,chk.comment);
          return false;
@@ -77,7 +78,12 @@ bool XSH_SendMarketOrder(const XSH_SymbolSpecs &spec,
      }
    else
      {
-      PrintFormat("WARN OrderCheck returned false, proceeding controlled send: %d %s",chk.retcode,chk.comment);
+      if(chk.retcode!=0)
+        {
+         reason=StringFormat("OrderCheck failed retcode=%d comment=%s",chk.retcode,chk.comment);
+         return false;
+        }
+      Print("WARN OrderCheck inconclusive (retcode=0), proceeding controlled send");
      }
 
    if(!OrderSend(req,res))

@@ -36,8 +36,8 @@ double XSH_NormalizeVolume(const XSH_SymbolSpecs &spec,double volume)
    if(spec.volume_step<=0.0) return 0.0;
    double steps=MathFloor(volume/spec.volume_step+1e-9);
    double normalized=steps*spec.volume_step;
-   normalized=MathMax(normalized,spec.volume_min);
    normalized=MathMin(normalized,spec.volume_max);
+   if(normalized<0.0) normalized=0.0;
    int vol_digits=0;
    double s=spec.volume_step;
    while(vol_digits<8 && MathAbs(s-MathRound(s))>1e-8)
