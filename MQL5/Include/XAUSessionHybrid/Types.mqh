@@ -70,6 +70,16 @@ struct XSH_SessionState
    XSH_OpeningRange ny_or;
    int london_trades;
    int ny_trades;
+   int london_last_direction;
+   int ny_last_direction;
+   bool london_breakout_long_used;
+   bool london_breakout_short_used;
+   bool london_reclaim_long_used;
+   bool london_reclaim_short_used;
+   bool ny_breakout_long_used;
+   bool ny_breakout_short_used;
+   bool ny_reclaim_long_used;
+   bool ny_reclaim_short_used;
    bool london_won;
    bool ny_won;
    bool suspend;
