@@ -51,10 +51,11 @@ bool XSH_ScoreSetup(const string symbol,
    else if(or_ratio>=XSH_SCORE_OR_RATIO_OK_MIN && or_ratio<=XSH_SCORE_OR_RATIO_OK_MAX) out_score.range_quality=14.0;
    else out_score.range_quality=6.0;
 
-   if(classification.regime==XSH_REGIME_CONTINUATION_FAVOR && signal.family==XSH_SIGNAL_BREAKOUT) out_score.context=20.0;
-   else if(classification.regime==XSH_REGIME_REVERSAL_FAVOR && signal.family==XSH_SIGNAL_RECLAIM) out_score.context=20.0;
-   else if(classification.regime==XSH_REGIME_NO_TRADE) out_score.context=0.0;
-   else out_score.context=8.0;
+    if(classification.regime==XSH_REGIME_CONTINUATION_FAVOR && signal.family==XSH_SIGNAL_BREAKOUT) out_score.context=20.0;
+    else if(classification.regime==XSH_REGIME_REVERSAL_FAVOR && signal.family==XSH_SIGNAL_RECLAIM) out_score.context=20.0;
+    else if(classification.regime==XSH_REGIME_MIXED) out_score.context=12.0;
+    else if(classification.regime==XSH_REGIME_NO_TRADE) out_score.context=0.0;
+    else out_score.context=8.0;
 
    double open_bar1[],close_bar1[],high_bar1[],low_bar1[];
    bool open_ok=(CopyOpen(symbol,PERIOD_M5,1,1,open_bar1)==1);

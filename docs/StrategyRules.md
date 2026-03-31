@@ -6,9 +6,10 @@
 - Evaluate entries on closed M5 bars only (one-bar/one-decision discipline).
 - Session classifier must approve regime before any order.
 
-## Session classifier (v2)
-- Classifies context as `CONTINUATION_FAVOR`, `REVERSAL_FAVOR`, or `NO_TRADE`.
+## Session classifier (v3 calibration)
+- Classifies context as `CONTINUATION_FAVOR`, `REVERSAL_FAVOR`, `MIXED`, or `NO_TRADE`.
 - Uses OR width vs ATR, early impulse quality, probe count, two-sided sweeps, M15 EMA slope, and extension from OR midpoint.
+- `MIXED` is tradable only with stricter score gating.
 - `NO_TRADE` blocks all entries.
 
 ## Setup scoring (v2)
@@ -24,6 +25,7 @@
 
 ## Setup family A: Breakout continuation
 - Allowed only when classifier is `CONTINUATION_FAVOR`.
+- In `REVERSAL_FAVOR`, allowed only if setup score clears conflict override threshold.
 - Closed M5 breakout candle required (no intrabar trigger).
 - Breakout must clear OR boundary with ATR buffer.
 - Body quality filters reject tiny/doji breakouts and large counter-side wick conflict.
@@ -31,7 +33,9 @@
 - Optional retest mode can require boundary retest/hold before entry.
 
 ## Setup family B: Fakeout reclaim
-- Allowed only when classifier is `REVERSAL_FAVOR` (or mixed-mode override input).
+- Allowed in `REVERSAL_FAVOR`.
+- In `CONTINUATION_FAVOR`, allowed only if setup score clears conflict override threshold.
+- In `MIXED`, allowed only if setup score clears mixed-mode threshold.
 - Sweep depth must be meaningful (ATR/spread based).
 - Reclaim close must be decisively back across the level with body quality.
 - Late reclaim invalidation via max-bars-after-sweep time decay.
@@ -55,9 +59,10 @@
 
 ## Main blocker reasons
 - Classifier `NO_TRADE`
+- Classifier/signal conflict below override threshold
 - Score below threshold
-- Spread too high for ATR
-- OR not built / OR quality invalid
+- Spread too high vs ATR and recent median context
+- OR not built / OR quality invalid / OR extreme vs ATR and recent session OR context
 - Session expired
 - Family+direction already used or opposing-direction conflict
 - Daily guard active (loss cap / trade cap / profit lock)

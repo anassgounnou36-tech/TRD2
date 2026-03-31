@@ -142,16 +142,27 @@ bool XSH_ClassifySession(const string symbol,
      }
 
    if(or_ok && directional_expansion && aligned && !classification.extended)
+      {
+       classification.regime=XSH_REGIME_CONTINUATION_FAVOR;
+       reason="Directional expansion + M15 alignment";
+       return true;
+      }
+
+   bool or_extreme_low=(classification.or_atr_ratio<XSH_CLASSIFIER_OR_MIN*0.80);
+   bool or_extreme_high=(classification.or_atr_ratio>XSH_CLASSIFIER_OR_MAX*1.20);
+   bool extension_extreme=(extension>max_extension_atr_frac*1.35);
+   if(or_extreme_low || or_extreme_high || extension_extreme)
      {
-      classification.regime=XSH_REGIME_CONTINUATION_FAVOR;
-      reason="Directional expansion + M15 alignment";
+      classification.regime=XSH_REGIME_NO_TRADE;
+      if(or_extreme_low || or_extreme_high) reason="OR quality outside extreme ATR band";
+      else reason="Price too extended from OR midpoint";
       return true;
      }
 
-   classification.regime=XSH_REGIME_NO_TRADE;
-   if(!or_ok) reason="OR quality outside ATR band";
-   else if(classification.extended) reason="Price too extended from OR midpoint";
-   else reason="Session structure not selective";
+   classification.regime=XSH_REGIME_MIXED;
+   if(!or_ok) reason="Mixed structure: OR quality outside preferred ATR band";
+   else if(classification.extended) reason="Mixed structure: extension elevated";
+   else reason="Mixed structure: selective but non-directional";
 
    return true;
   }

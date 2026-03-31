@@ -26,7 +26,8 @@ enum XSH_SessionRegime
   {
    XSH_REGIME_CONTINUATION_FAVOR=1,
    XSH_REGIME_REVERSAL_FAVOR=2,
-   XSH_REGIME_NO_TRADE=3
+   XSH_REGIME_MIXED=3,
+   XSH_REGIME_NO_TRADE=4
   };
 
 enum XSH_SetupLifecycleState
@@ -145,6 +146,17 @@ struct XSH_DailyRiskState
    int losses_today;
    bool blocked;
    string block_reason;
+  };
+
+struct XSH_DiagnosticsCounters
+  {
+   int sessions_seen;
+   int blocked_or_too_wide;
+   int blocked_spread;
+   int blocked_classifier_conflict;
+   int setups_scored_rejected;
+   int setups_accepted;
+   int trades_placed;
   };
 
 #endif

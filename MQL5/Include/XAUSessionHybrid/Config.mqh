@@ -23,7 +23,9 @@ input int InpNYTradeMinutes = 90;
 
 input int    InpATRPeriod = 14;
 input double InpMinRangeATRFrac = 0.25;
-input double InpMaxRangeATRFrac = 1.25;
+input double InpMaxRangeATRFrac = 1.55;
+input int    InpORStatsLookbackSessions = 20;
+input double InpORStatsExtremeFrac = 1.55;
 input double InpMinRangeSpreadMult = 5.0;
 input double InpBreakoutBufferATRFrac = 0.10;
 input double InpStopBufferATRFrac = 0.10;
@@ -47,12 +49,17 @@ input int    InpMaxHoldMinutes = 180;
 input bool   InpFlattenAtSessionEnd = true;
 input bool   InpMoveToBEAfterTP1 = true;
 
-input double InpMaxSpreadATRFrac = 0.12;
+input double InpMaxSpreadATRFrac = 0.18;
+input int    InpSpreadStatsLookbackBars = 18;
+input double InpSpreadMedianMultThreshold = 1.65;
 input bool   InpUseNewsBlockWindows = false;
 input string InpManualBlockWindows = "";
 
-input double InpMinSetupScore = 65.0;
+input double InpMinSetupScore = 62.0;
 input bool   InpAllowMixedRegimeSignals = false;
+input double InpMixedModeScoreThreshold = 66.0;
+input double InpConflictOverrideScoreThreshold = 74.0;
+input double InpNearThresholdLogBand = 4.0;
 input int    InpClassifierProbeLookbackBars = 12;
 input int    InpMaxORProbesBeforeBlock = 4;
 input double InpMaxExtensionATRFrac = 2.0;
