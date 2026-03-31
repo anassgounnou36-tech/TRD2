@@ -47,10 +47,10 @@ bool XSH_ScoreSetup(const string symbol,
    else if(classification.regime==XSH_REGIME_NO_TRADE) out_score.context=0.0;
    else out_score.context=8.0;
 
-   double open1[],close1[],high1[],low1[];
-   if(CopyOpen(symbol,PERIOD_M5,1,1,open1)==1 && CopyClose(symbol,PERIOD_M5,1,1,close1)==1 && CopyHigh(symbol,PERIOD_M5,1,1,high1)==1 && CopyLow(symbol,PERIOD_M5,1,1,low1)==1)
-     {
-      double o=open1[0],c=close1[0],h=high1[0],l=low1[0];
+   double open_bar1[],close_bar1[],high_bar1[],low_bar1[];
+   if(CopyOpen(symbol,PERIOD_M5,1,1,open_bar1)==1 && CopyClose(symbol,PERIOD_M5,1,1,close_bar1)==1 && CopyHigh(symbol,PERIOD_M5,1,1,high_bar1)==1 && CopyLow(symbol,PERIOD_M5,1,1,low_bar1)==1)
+      {
+      double o=open_bar1[0],c=close_bar1[0],h=high_bar1[0],l=low_bar1[0];
       double body=MathAbs(c-o);
       double range=MathMax(0.0,h-l);
       double body_frac=(range>0.0?body/range:0.0);

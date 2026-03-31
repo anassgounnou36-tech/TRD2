@@ -63,17 +63,17 @@ bool XSH_ClassifySession(const string symbol,
       return false;
      }
 
-   double o1[],c1[],h1[],l1[],o2[],c2[],h2[],l2[];
-   if(CopyOpen(symbol,PERIOD_M5,1,1,o1)!=1 || CopyClose(symbol,PERIOD_M5,1,1,c1)!=1 || CopyHigh(symbol,PERIOD_M5,1,1,h1)!=1 || CopyLow(symbol,PERIOD_M5,1,1,l1)!=1)
-     {
-      reason="Classifier bar-1 unavailable";
-      return false;
-     }
-   if(CopyOpen(symbol,PERIOD_M5,2,1,o2)!=1 || CopyClose(symbol,PERIOD_M5,2,1,c2)!=1 || CopyHigh(symbol,PERIOD_M5,2,1,h2)!=1 || CopyLow(symbol,PERIOD_M5,2,1,l2)!=1)
-     {
-      reason="Classifier bar-2 unavailable";
-      return false;
-     }
+   double open_bar1[],close_bar1[],high_bar1[],low_bar1[],open_bar2[],close_bar2[],high_bar2[],low_bar2[];
+   if(CopyOpen(symbol,PERIOD_M5,1,1,open_bar1)!=1 || CopyClose(symbol,PERIOD_M5,1,1,close_bar1)!=1 || CopyHigh(symbol,PERIOD_M5,1,1,high_bar1)!=1 || CopyLow(symbol,PERIOD_M5,1,1,low_bar1)!=1)
+      {
+       reason="Classifier bar-1 unavailable";
+       return false;
+      }
+   if(CopyOpen(symbol,PERIOD_M5,2,1,open_bar2)!=1 || CopyClose(symbol,PERIOD_M5,2,1,close_bar2)!=1 || CopyHigh(symbol,PERIOD_M5,2,1,high_bar2)!=1 || CopyLow(symbol,PERIOD_M5,2,1,low_bar2)!=1)
+      {
+       reason="Classifier bar-2 unavailable";
+       return false;
+      }
 
    int probes_above=0,probes_below=0;
    bool both_sides=false;
@@ -85,10 +85,10 @@ bool XSH_ClassifySession(const string symbol,
    double or_mid=(or_state.high+or_state.low)*0.5;
    classification.or_atr_ratio=(atr_m15>0.0?or_range/atr_m15:0.0);
 
-   double body1=MathAbs(c1[0]-o1[0]);
-   double body2=MathAbs(c2[0]-o2[0]);
-   double dir1=(c1[0]>=o1[0]?1.0:-1.0);
-   double dir2=(c2[0]>=o2[0]?1.0:-1.0);
+   double body1=MathAbs(close_bar1[0]-open_bar1[0]);
+   double body2=MathAbs(close_bar2[0]-open_bar2[0]);
+   double dir1=(close_bar1[0]>=open_bar1[0]?1.0:-1.0);
+   double dir2=(close_bar2[0]>=open_bar2[0]?1.0:-1.0);
    double same_dir=(dir1==dir2?1.0:0.0);
    classification.impulse_score=(body1+body2)/(atr_m5*2.0) + same_dir*0.5;
 
@@ -100,7 +100,7 @@ bool XSH_ClassifySession(const string symbol,
      }
    double bias_slope=ema_now-ema_prev;
 
-   double close_now=c1[0];
+   double close_now=close_bar1[0];
    double extension=MathAbs(close_now-or_mid)/(atr_m5>0.0?atr_m5:1.0);
    classification.extended=(extension>max_extension_atr_frac);
 
@@ -118,7 +118,7 @@ bool XSH_ClassifySession(const string symbol,
       return true;
      }
 
-   bool sweep_signature=(h1[0]>or_state.high || l1[0]<or_state.low || h2[0]>or_state.high || l2[0]<or_state.low);
+   bool sweep_signature=(high_bar1[0]>or_state.high || low_bar1[0]<or_state.low || high_bar2[0]>or_state.high || low_bar2[0]<or_state.low);
 
    if(sweep_signature && !directional_expansion)
      {
