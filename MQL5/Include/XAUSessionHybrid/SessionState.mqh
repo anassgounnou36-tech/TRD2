@@ -29,36 +29,6 @@ void XSH_ResetSessionState(XSH_SessionState &st)
    st.suspend_reason="";
   }
 
-bool XSH_GetOpeningRange(const XSH_SessionState &state,XSH_SessionType session,XSH_OpeningRange &out_range)
-  {
-   if(session==XSH_SESSION_LONDON)
-     {
-      out_range=state.london_or;
-      return true;
-     }
-   if(session==XSH_SESSION_NEWYORK)
-     {
-      out_range=state.ny_or;
-      return true;
-     }
-   return false;
-  }
-
-bool XSH_SetOpeningRange(XSH_SessionState &state,XSH_SessionType session,const XSH_OpeningRange &range)
-  {
-   if(session==XSH_SESSION_LONDON)
-     {
-      state.london_or=range;
-      return true;
-     }
-   if(session==XSH_SESSION_NEWYORK)
-     {
-      state.ny_or=range;
-      return true;
-     }
-   return false;
-  }
-
 int XSH_GetSessionTrades(const XSH_SessionState &st,const XSH_SessionType session)
   {
    if(session==XSH_SESSION_LONDON) return st.london_trades;

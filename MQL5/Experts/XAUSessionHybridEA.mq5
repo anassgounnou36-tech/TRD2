@@ -329,10 +329,22 @@ void OnTick()
    bool has_or=false;
    if(session!=XSH_SESSION_NONE)
       {
-       has_or=XSH_GetOpeningRange(g_session,session,current_or);
+       if(session==XSH_SESSION_LONDON)
+         {
+          current_or=g_session.london_or;
+          has_or=true;
+         }
+       else if(session==XSH_SESSION_NEWYORK)
+         {
+          current_or=g_session.ny_or;
+          has_or=true;
+         }
        datetime start=(session==XSH_SESSION_LONDON?london_start:ny_start);
        XSH_BuildOpeningRange(g_symbol,PERIOD_M5,TimeCurrent(),start,session==XSH_SESSION_LONDON?InpLondonRangeMinutes:InpNYRangeMinutes,current_or);
-       XSH_SetOpeningRange(g_session,session,current_or);
+       if(session==XSH_SESSION_LONDON)
+          g_session.london_or=current_or;
+       else if(session==XSH_SESSION_NEWYORK)
+          g_session.ny_or=current_or;
       }
 
    string blocker="";
