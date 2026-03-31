@@ -3,6 +3,8 @@
 
 #include <XAUSessionHybrid/Types.mqh>
 
+const double XSH_TWO_SIDED_OVERRIDE_BONUS=10.0;
+
 bool XSH_ShouldBlockTrade(const XSH_SessionClassification &classification,
                           const XSH_SetupScore &score,
                           const double min_setup_score,
@@ -39,7 +41,7 @@ bool XSH_ShouldBlockTrade(const XSH_SessionClassification &classification,
       return true;
      }
 
-   if(classification.both_sides_swept && score.total<MathMin(100.0,min_setup_score+10.0))
+   if(classification.both_sides_swept && score.total<MathMin(100.0,min_setup_score+XSH_TWO_SIDED_OVERRIDE_BONUS))
      {
       reason="Two-sided sweep trap (no high-score override)";
       return true;

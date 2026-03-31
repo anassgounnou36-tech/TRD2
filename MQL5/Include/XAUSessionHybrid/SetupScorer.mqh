@@ -3,6 +3,15 @@
 
 #include <XAUSessionHybrid/Types.mqh>
 
+const double XSH_SCORE_OR_RATIO_GOOD_MIN=0.35;
+const double XSH_SCORE_OR_RATIO_GOOD_MAX=1.15;
+const double XSH_SCORE_OR_RATIO_OK_MIN=0.25;
+const double XSH_SCORE_OR_RATIO_OK_MAX=1.35;
+const double XSH_SCORE_BREAKOUT_BODY_FRAC_BONUS_LEVEL=0.55;
+const double XSH_SCORE_BREAKOUT_BODY_ATR_BONUS_LEVEL=0.25;
+const double XSH_SCORE_BREAKOUT_WICK_FRAC_LIMIT=0.60;
+const double XSH_SCORE_MAX_STOP_ATR_MULT=2.5;
+
 double XSH_ClampScore(const double v,const double mn,const double mx)
   {
    return MathMax(mn,MathMin(mx,v));
@@ -38,8 +47,8 @@ bool XSH_ScoreSetup(const string symbol,
 
    double or_range=or_state.high-or_state.low;
    double or_ratio=or_range/atr_m15;
-   if(or_ratio>=0.35 && or_ratio<=1.15) out_score.range_quality=20.0;
-   else if(or_ratio>=0.25 && or_ratio<=1.35) out_score.range_quality=14.0;
+   if(or_ratio>=XSH_SCORE_OR_RATIO_GOOD_MIN && or_ratio<=XSH_SCORE_OR_RATIO_GOOD_MAX) out_score.range_quality=20.0;
+   else if(or_ratio>=XSH_SCORE_OR_RATIO_OK_MIN && or_ratio<=XSH_SCORE_OR_RATIO_OK_MAX) out_score.range_quality=14.0;
    else out_score.range_quality=6.0;
 
    if(classification.regime==XSH_REGIME_CONTINUATION_FAVOR && signal.family==XSH_SIGNAL_BREAKOUT) out_score.context=20.0;
@@ -48,7 +57,11 @@ bool XSH_ScoreSetup(const string symbol,
    else out_score.context=8.0;
 
    double open_bar1[],close_bar1[],high_bar1[],low_bar1[];
-   if(CopyOpen(symbol,PERIOD_M5,1,1,open_bar1)==1 && CopyClose(symbol,PERIOD_M5,1,1,close_bar1)==1 && CopyHigh(symbol,PERIOD_M5,1,1,high_bar1)==1 && CopyLow(symbol,PERIOD_M5,1,1,low_bar1)==1)
+   bool open_ok=(CopyOpen(symbol,PERIOD_M5,1,1,open_bar1)==1);
+   bool close_ok=(CopyClose(symbol,PERIOD_M5,1,1,close_bar1)==1);
+   bool high_ok=(CopyHigh(symbol,PERIOD_M5,1,1,high_bar1)==1);
+   bool low_ok=(CopyLow(symbol,PERIOD_M5,1,1,low_bar1)==1);
+   if(open_ok && close_ok && high_ok && low_ok)
       {
       double o=open_bar1[0],c=close_bar1[0],h=high_bar1[0],l=low_bar1[0];
       double body=MathAbs(c-o);
@@ -58,9 +71,9 @@ bool XSH_ScoreSetup(const string symbol,
       if(signal.family==XSH_SIGNAL_BREAKOUT)
         {
          out_score.trigger_quality=10.0;
-         if(body_frac>=0.55) out_score.trigger_quality+=8.0;
-         if(body_atr>=0.25) out_score.trigger_quality+=4.0;
-         bool clean_wick=(signal.direction==XSH_DIR_LONG?(h-c)<=body*0.6:(c-l)<=body*0.6);
+         if(body_frac>=XSH_SCORE_BREAKOUT_BODY_FRAC_BONUS_LEVEL) out_score.trigger_quality+=8.0;
+         if(body_atr>=XSH_SCORE_BREAKOUT_BODY_ATR_BONUS_LEVEL) out_score.trigger_quality+=4.0;
+         bool clean_wick=(signal.direction==XSH_DIR_LONG?(h-c)<=body*XSH_SCORE_BREAKOUT_WICK_FRAC_LIMIT:(c-l)<=body*XSH_SCORE_BREAKOUT_WICK_FRAC_LIMIT);
          if(clean_wick) out_score.trigger_quality+=3.0;
         }
       else if(signal.family==XSH_SIGNAL_RECLAIM)
@@ -76,7 +89,7 @@ bool XSH_ScoreSetup(const string symbol,
 
    out_score.execution_quality=15.0;
    if(atr_m5>0.0 && spread>atr_m5*max_spread_atr_frac) out_score.execution_quality-=6.0;
-   if(stop_distance<=0.0 || stop_distance>atr_m5*2.5) out_score.execution_quality-=4.0;
+   if(stop_distance<=0.0 || stop_distance>atr_m5*XSH_SCORE_MAX_STOP_ATR_MULT) out_score.execution_quality-=4.0;
    if(session_minutes_left<20) out_score.execution_quality-=5.0;
    out_score.execution_quality=XSH_ClampScore(out_score.execution_quality,0.0,15.0);
 

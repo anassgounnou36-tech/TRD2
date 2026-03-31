@@ -5,6 +5,8 @@
 #include <XAUSessionHybrid/Types.mqh>
 #include <XAUSessionHybrid/IndicatorEngine.mqh>
 
+const double XSH_STRUCTURE_TRAIL_OFFSET_POINTS=2.0;
+
 bool XSH_ModifySLSafe(const XSH_SymbolSpecs &spec,
                       const ulong ticket,
                       const double new_sl,
@@ -95,7 +97,7 @@ void XSH_ManageOpenPosition(const XSH_SymbolSpecs &spec,
                   {
                    double swing_low[];
                    if(CopyLow(spec.symbol,PERIOD_M5,2,1,swing_low)==1)
-                      candidate=MathMax(candidate,swing_low[0]-spec.point*2.0);
+                      candidate=MathMax(candidate,swing_low[0]-spec.point*XSH_STRUCTURE_TRAIL_OFFSET_POINTS);
                   }
                 if(candidate>sl) proposed_sl=candidate;
                }
@@ -106,7 +108,7 @@ void XSH_ManageOpenPosition(const XSH_SymbolSpecs &spec,
                   {
                    double swing_high[];
                    if(CopyHigh(spec.symbol,PERIOD_M5,2,1,swing_high)==1)
-                      candidate=MathMin(candidate,swing_high[0]+spec.point*2.0);
+                      candidate=MathMin(candidate,swing_high[0]+spec.point*XSH_STRUCTURE_TRAIL_OFFSET_POINTS);
                   }
                 if(candidate<sl || sl<=0.0) proposed_sl=candidate;
                }

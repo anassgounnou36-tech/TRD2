@@ -4,6 +4,12 @@
 #include <XAUSessionHybrid/Types.mqh>
 #include <XAUSessionHybrid/IndicatorEngine.mqh>
 
+const double XSH_CLASSIFIER_IMPULSE_ATR_NORM=2.0;
+const double XSH_CLASSIFIER_DIR_BONUS=0.5;
+const double XSH_CLASSIFIER_OR_MIN=0.25;
+const double XSH_CLASSIFIER_OR_MAX=1.35;
+const double XSH_CLASSIFIER_IMPULSE_MIN=0.70;
+
 bool XSH_ReadSessionProbeStats(const string symbol,
                                const XSH_OpeningRange &or_state,
                                const int lookback_bars,
@@ -64,12 +70,20 @@ bool XSH_ClassifySession(const string symbol,
      }
 
    double open_bar1[],close_bar1[],high_bar1[],low_bar1[],open_bar2[],close_bar2[],high_bar2[],low_bar2[];
-   if(CopyOpen(symbol,PERIOD_M5,1,1,open_bar1)!=1 || CopyClose(symbol,PERIOD_M5,1,1,close_bar1)!=1 || CopyHigh(symbol,PERIOD_M5,1,1,high_bar1)!=1 || CopyLow(symbol,PERIOD_M5,1,1,low_bar1)!=1)
+   bool bar1_open_ok=(CopyOpen(symbol,PERIOD_M5,1,1,open_bar1)==1);
+   bool bar1_close_ok=(CopyClose(symbol,PERIOD_M5,1,1,close_bar1)==1);
+   bool bar1_high_ok=(CopyHigh(symbol,PERIOD_M5,1,1,high_bar1)==1);
+   bool bar1_low_ok=(CopyLow(symbol,PERIOD_M5,1,1,low_bar1)==1);
+   if(!(bar1_open_ok && bar1_close_ok && bar1_high_ok && bar1_low_ok))
       {
        reason="Classifier bar-1 unavailable";
        return false;
       }
-   if(CopyOpen(symbol,PERIOD_M5,2,1,open_bar2)!=1 || CopyClose(symbol,PERIOD_M5,2,1,close_bar2)!=1 || CopyHigh(symbol,PERIOD_M5,2,1,high_bar2)!=1 || CopyLow(symbol,PERIOD_M5,2,1,low_bar2)!=1)
+   bool bar2_open_ok=(CopyOpen(symbol,PERIOD_M5,2,1,open_bar2)==1);
+   bool bar2_close_ok=(CopyClose(symbol,PERIOD_M5,2,1,close_bar2)==1);
+   bool bar2_high_ok=(CopyHigh(symbol,PERIOD_M5,2,1,high_bar2)==1);
+   bool bar2_low_ok=(CopyLow(symbol,PERIOD_M5,2,1,low_bar2)==1);
+   if(!(bar2_open_ok && bar2_close_ok && bar2_high_ok && bar2_low_ok))
       {
        reason="Classifier bar-2 unavailable";
        return false;
@@ -90,7 +104,7 @@ bool XSH_ClassifySession(const string symbol,
    double dir1=(close_bar1[0]>=open_bar1[0]?1.0:-1.0);
    double dir2=(close_bar2[0]>=open_bar2[0]?1.0:-1.0);
    double same_dir=(dir1==dir2?1.0:0.0);
-   classification.impulse_score=(body1+body2)/(atr_m5*2.0) + same_dir*0.5;
+   classification.impulse_score=(body1+body2)/(atr_m5*XSH_CLASSIFIER_IMPULSE_ATR_NORM) + same_dir*XSH_CLASSIFIER_DIR_BONUS;
 
    double ema_now=0.0,ema_prev=0.0;
    if(!XSH_ReadEMA(symbol,PERIOD_M15,ema_period,1,ema_now) || !XSH_ReadEMA(symbol,PERIOD_M15,ema_period,2,ema_prev))
@@ -104,8 +118,8 @@ bool XSH_ClassifySession(const string symbol,
    double extension=MathAbs(close_now-or_mid)/(atr_m5>0.0?atr_m5:1.0);
    classification.extended=(extension>max_extension_atr_frac);
 
-   bool or_ok=(classification.or_atr_ratio>=0.25 && classification.or_atr_ratio<=1.35);
-   bool directional_expansion=(classification.impulse_score>=0.70 && same_dir>0.0);
+   bool or_ok=(classification.or_atr_ratio>=XSH_CLASSIFIER_OR_MIN && classification.or_atr_ratio<=XSH_CLASSIFIER_OR_MAX);
+   bool directional_expansion=(classification.impulse_score>=XSH_CLASSIFIER_IMPULSE_MIN && same_dir>0.0);
    bool trend_up=(close_now>=ema_now && bias_slope>=0.0);
    bool trend_down=(close_now<=ema_now && bias_slope<=0.0);
    bool aligned=(trend_up || trend_down);

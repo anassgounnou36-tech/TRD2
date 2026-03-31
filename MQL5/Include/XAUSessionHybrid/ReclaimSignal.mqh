@@ -3,6 +3,8 @@
 
 #include <XAUSessionHybrid/Types.mqh>
 
+const int XSH_SWEEP_NOT_FOUND=9999;
+
 bool XSH_DetectReclaim(const string symbol,
                        XSH_OpeningRange &or_state,
                        const double atr_m5,
@@ -36,14 +38,14 @@ bool XSH_DetectReclaim(const string symbol,
    double upper_wick=h-MathMax(o,c);
    double lower_wick=MathMin(o,c)-l;
 
-   int bars_since_sweep_below=9999;
-   int bars_since_sweep_above=9999;
+   int bars_since_sweep_below=XSH_SWEEP_NOT_FOUND;
+   int bars_since_sweep_above=XSH_SWEEP_NOT_FOUND;
    for(int shift=2;shift<=bars;shift++)
      {
       double hi_buf[],lo_buf[];
       if(CopyHigh(symbol,PERIOD_M5,shift,1,hi_buf)!=1 || CopyLow(symbol,PERIOD_M5,shift,1,lo_buf)!=1) continue;
-      if(lo_buf[0]<or_state.low && bars_since_sweep_below==9999) bars_since_sweep_below=shift-1;
-      if(hi_buf[0]>or_state.high && bars_since_sweep_above==9999) bars_since_sweep_above=shift-1;
+      if(lo_buf[0]<or_state.low && bars_since_sweep_below==XSH_SWEEP_NOT_FOUND) bars_since_sweep_below=shift-1;
+      if(hi_buf[0]>or_state.high && bars_since_sweep_above==XSH_SWEEP_NOT_FOUND) bars_since_sweep_above=shift-1;
      }
 
    if(or_state.sweep_below &&
