@@ -27,11 +27,17 @@ XSH_DailyRiskState g_daily;
 datetime g_last_bar=0;
 int g_last_day_tag=0;
 
-bool XSH_IsXAU(const string symbol)
+bool XSH_IsSupportedGoldSymbol(const string symbol_name)
   {
-   string s=symbol;
+   string s=symbol_name;
    StringToUpper(s);
-   return (StringFind(s,"XAUUSD",0)==0);
+   if(StringFind(s,"XAUUSD",0)>=0) return true;
+   if(s=="GOLD") return true;
+   bool has_xau=(StringFind(s,"XAU",0)>=0);
+   bool has_usd=(StringFind(s,"USD",0)>=0);
+   if(has_xau && has_usd) return true;
+   if(StringFind(s,"GOLD",0)>=0 && has_usd) return true;
+   return false;
   }
 
 bool XSH_ParseHHMM(const string hhmm,int &hour,int &minute)
@@ -240,13 +246,17 @@ bool XSH_BuildTradeFromSignal(const XSH_Signal &sig,const XSH_OpeningRange &or_s
 
 int OnInit()
   {
-   g_symbol=(StringLen(InpSymbol)>0?InpSymbol:_Symbol);
+   string chart_symbol=_Symbol;
+   g_symbol=(StringLen(InpSymbol)>0?InpSymbol:chart_symbol);
+   PrintFormat("Chart symbol = %s",chart_symbol);
+   PrintFormat("Resolved trade symbol = %s",g_symbol);
 
-   if(!XSH_IsXAU(g_symbol))
-     {
-      Print("Only XAUUSD symbols are supported");
+   if(!XSH_IsSupportedGoldSymbol(g_symbol))
+      {
+      PrintFormat("Unsupported symbol '%s'; expected a gold-vs-USD alias such as XAUUSD or GOLD",g_symbol);
       return(INIT_FAILED);
-     }
+      }
+   Print("Gold symbol validation passed");
 
    if(InpSignalTF!=PERIOD_M5 || InpContextTF!=PERIOD_M15)
       Print("WARN strategy is designed for M5 signal and M15 context");
