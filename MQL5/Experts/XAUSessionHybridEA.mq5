@@ -100,7 +100,7 @@ double XSH_MedianFromArray(const double &values[],const int count)
    double sorted[];
    ArrayResize(sorted,count);
    for(int i=0;i<count;i++) sorted[i]=values[i];
-   ArraySort(sorted,WHOLE_ARRAY,0,MODE_ASCEND);
+   ArraySort(sorted);
    if((count%2)==1) return sorted[count/2];
    return (sorted[count/2-1]+sorted[count/2])*0.5;
   }
