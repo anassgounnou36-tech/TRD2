@@ -12,10 +12,14 @@
 #include <XAUSessionHybrid/BiasFilter.mqh>
 #include <XAUSessionHybrid/BreakoutSignal.mqh>
 #include <XAUSessionHybrid/ReclaimSignal.mqh>
+#include <XAUSessionHybrid/SessionClassifier.mqh>
+#include <XAUSessionHybrid/SetupScorer.mqh>
+#include <XAUSessionHybrid/NoTradeFilter.mqh>
 #include <XAUSessionHybrid/RiskModel.mqh>
 #include <XAUSessionHybrid/ExecutionEngine.mqh>
 #include <XAUSessionHybrid/PositionManager.mqh>
 #include <XAUSessionHybrid/SessionState.mqh>
+#include <XAUSessionHybrid/SetupState.mqh>
 #include <XAUSessionHybrid/Diagnostics.mqh>
 #include <XAUSessionHybrid/Journal.mqh>
 #include <XAUSessionHybrid/ChartPanel.mqh>
@@ -186,6 +190,21 @@ bool XSH_PreTradeFilters(const XSH_SessionType session,const XSH_OpeningRange &o
      }
 
    return true;
+  }
+
+int XSH_SessionMinutesLeft(const datetime now,const XSH_SessionType session,const datetime london_start,const datetime ny_start)
+  {
+   if(session==XSH_SESSION_LONDON)
+     {
+      datetime end=london_start+InpLondonTradeMinutes*60;
+      return (int)MathMax(0,(end-now)/60);
+     }
+   if(session==XSH_SESSION_NEWYORK)
+     {
+      datetime end=ny_start+InpNYTradeMinutes*60;
+      return (int)MathMax(0,(end-now)/60);
+     }
+   return 0;
   }
 
 bool XSH_BuildTradeFromSignal(const XSH_Signal &sig,const XSH_OpeningRange &or_state,const double atr_m5,XSH_Signal &trade_sig,string &reason)
@@ -366,120 +385,235 @@ void OnTick()
    double spread=(ask>bid?ask-bid:0.0);
    int session_trades=XSH_GetSessionTrades(g_session,session);
    string setup_candidate="NONE";
+   XSH_SessionRegime panel_regime=XSH_REGIME_NO_TRADE;
+   int panel_dir=0;
+   double panel_score=0.0;
+   string panel_lifecycle=XSH_LifecycleToText(XSH_GetLifecycle(g_session,session));
 
-   XSH_ManageOpenPosition(g_spec,InpMagic,InpTP1_R,InpTrailATRFrac,InpATRPeriod,InpMoveToBEAfterTP1,InpMaxHoldMinutes);
+   if(!XSH_IsNewBar(g_symbol,PERIOD_M5,g_last_bar))
+     {
+      if(InpEnableChartPanel)
+         XSH_UpdatePanel(ChartID(),g_symbol,session,panel_regime,current_or,g_daily,blocker,spread,session_trades,setup_candidate,panel_dir,panel_score,panel_lifecycle,has_pos);
+      return;
+     }
+
+   XSH_ManageOpenPosition(g_spec,InpMagic,InpTP1_R,InpTrailATRFrac,InpATRPeriod,InpMoveToBEAfterTP1,InpMaxHoldMinutes,InpMinTrailStepPoints,InpTrailOnlyAfterR,InpUseStructureTrail);
    has_pos=XSH_HasPosition(g_symbol,InpMagic,pos_count);
-
-   if(!XSH_IsNewBar(g_symbol,PERIOD_M5,g_last_bar)) return;
+   if(has_pos)
+      XSH_SetLifecycle(g_session,session,XSH_SETUP_POSITION_OPEN);
+   else if(XSH_GetLifecycle(g_session,session)==XSH_SETUP_POSITION_OPEN)
+     {
+      XSH_SetLifecycle(g_session,session,XSH_SETUP_COMPLETED);
+      XSH_ClearActiveSetup(g_session,session);
+     }
 
    if(g_session.suspend)
-     {
-      if(InpEnableChartPanel)
-         XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
-      return;
-     }
-   if(!XSH_CheckDailyGuards(g_daily,InpMaxDailyLossPct,InpMaxTradesPerDay,InpEnableDailyProfitLock,InpDailyProfitLockR,InpRiskPct,InpDailyLossUseEquity))
-     {
-       blocker=g_daily.block_reason;
+      {
+       XSH_SetSessionBlocker(g_session,session,g_session.suspend_reason);
        if(InpEnableChartPanel)
-         XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
+          XSH_UpdatePanel(ChartID(),g_symbol,session,panel_regime,current_or,g_daily,blocker,spread,session_trades,setup_candidate,panel_dir,panel_score,XSH_LifecycleToText(XSH_GetLifecycle(g_session,session)),has_pos);
        return;
       }
-   if(has_pos || session==XSH_SESSION_NONE || XSH_GetSessionTrades(g_session,session)>=InpMaxTradesPerSession)
-     {
-      if(InpEnableChartPanel)
-         XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
-      return;
-     }
+    if(!XSH_CheckDailyGuards(g_daily,InpMaxDailyLossPct,InpMaxTradesPerDay,InpEnableDailyProfitLock,InpDailyProfitLockR,InpRiskPct,InpDailyLossUseEquity))
+      {
+        blocker=g_daily.block_reason;
+        XSH_SetSessionBlocker(g_session,session,blocker);
+        if(InpEnableChartPanel)
+          XSH_UpdatePanel(ChartID(),g_symbol,session,panel_regime,current_or,g_daily,blocker,spread,session_trades,setup_candidate,panel_dir,panel_score,XSH_LifecycleToText(XSH_GetLifecycle(g_session,session)),has_pos);
+        return;
+       }
+    if(has_pos || session==XSH_SESSION_NONE || XSH_GetSessionTrades(g_session,session)>=InpMaxTradesPerSession)
+      {
+        if(has_pos)
+           XSH_SetSessionBlocker(g_session,session,"Position already open");
+       else if(session==XSH_SESSION_NONE)
+          XSH_SetSessionBlocker(g_session,session,"Outside session");
+       else
+          XSH_SetSessionBlocker(g_session,session,"Max trades per session reached");
+        if(InpEnableChartPanel)
+           XSH_UpdatePanel(ChartID(),g_symbol,session,panel_regime,current_or,g_daily,XSH_GetSessionBlocker(g_session,session),spread,session_trades,setup_candidate,panel_dir,panel_score,XSH_LifecycleToText(XSH_GetLifecycle(g_session,session)),has_pos);
+        return;
+      }
 
    if((session==XSH_SESSION_LONDON && !XSH_IsInWindow(TimeCurrent(),london_start,InpLondonTradeMinutes)) ||
       (session==XSH_SESSION_NEWYORK && !XSH_IsInWindow(TimeCurrent(),ny_start,InpNYTradeMinutes)))
-     {
-      if(InpEnableChartPanel)
-         XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
-      return;
-     }
+      {
+       XSH_SetSessionBlocker(g_session,session,"Session window expired");
+       if(InpEnableChartPanel)
+          XSH_UpdatePanel(ChartID(),g_symbol,session,panel_regime,current_or,g_daily,XSH_GetSessionBlocker(g_session,session),spread,session_trades,setup_candidate,panel_dir,panel_score,XSH_LifecycleToText(XSH_GetLifecycle(g_session,session)),has_pos);
+       return;
+      }
 
    if(!has_or || !current_or.built)
-     {
-      if(InpEnableChartPanel)
-         XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
-      return;
-     }
+      {
+       XSH_SetSessionBlocker(g_session,session,"OR not built");
+       if(InpEnableChartPanel)
+          XSH_UpdatePanel(ChartID(),g_symbol,session,panel_regime,current_or,g_daily,XSH_GetSessionBlocker(g_session,session),spread,session_trades,setup_candidate,panel_dir,panel_score,XSH_LifecycleToText(XSH_GetLifecycle(g_session,session)),has_pos);
+       return;
+      }
 
    double atr_m5=0.0,atr_m15=0.0;
    string reason="";
-   if(!XSH_PreTradeFilters(session,current_or,atr_m5,atr_m15,reason))
+    if(!XSH_PreTradeFilters(session,current_or,atr_m5,atr_m15,reason))
+      {
+       XSH_Log("INFO",StringFormat("No trade: %s",reason));
+       XSH_SetSessionBlocker(g_session,session,reason);
+       XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
+       return;
+      }
+
+   XSH_SessionClassification session_class;
+   ZeroMemory(session_class);
+   if(!XSH_ClassifySession(g_symbol,current_or,atr_m5,atr_m15,InpBiasEMAPeriod,InpClassifierProbeLookbackBars,InpMaxORProbesBeforeBlock,InpMaxExtensionATRFrac,session_class,reason))
      {
-      XSH_Log("INFO",StringFormat("No trade: %s",reason));
+      XSH_SetSessionBlocker(g_session,session,reason);
+      XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
+      XSH_Log("INFO",StringFormat("No trade: classifier unavailable (%s)",reason));
       return;
      }
+   panel_regime=session_class.regime;
 
    XSH_Signal reclaim_sig;
    XSH_Signal breakout_sig;
    ZeroMemory(reclaim_sig);
    ZeroMemory(breakout_sig);
 
-   bool has_reclaim=XSH_DetectReclaim(g_symbol,current_or,InpReclaimBodyStrengthFrac,reclaim_sig);
-   bool has_breakout=XSH_DetectBreakout(g_symbol,current_or,atr_m5,InpBreakoutBufferATRFrac,breakout_sig);
+   bool has_reclaim=XSH_DetectReclaim(g_symbol,current_or,atr_m5,spread,InpReclaimMinSweepATRFrac,InpReclaimMinSweepSpreadMult,InpReclaimCloseBackATRFrac,InpReclaimBodyStrengthFrac,InpReclaimMaxCounterWickFrac,InpReclaimMaxBarsAfterSweep,reclaim_sig);
+   bool has_breakout=XSH_DetectBreakout(g_symbol,current_or,atr_m5,InpBreakoutBufferATRFrac,InpBreakoutMinBodyRangeFrac,InpBreakoutMinBodyATRFrac,InpBreakoutMaxCounterWickFrac,InpMaxBreakoutATRFrac,breakout_sig);
+   if(has_breakout)
+      has_breakout=XSH_BreakoutRetestPassed(g_symbol,current_or,breakout_sig.direction,atr_m5,InpUseBreakoutRetest,InpBreakoutRetestMaxBars,InpBreakoutRetestToleranceATRFrac);
    if(has_reclaim) setup_candidate=(reclaim_sig.direction==XSH_DIR_LONG?"RECLAIM_LONG":"RECLAIM_SHORT");
    else if(has_breakout) setup_candidate=(breakout_sig.direction==XSH_DIR_LONG?"BREAKOUT_LONG":"BREAKOUT_SHORT");
-
-   if(InpEnableChartPanel)
-      XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
 
    XSH_Signal raw_sig;
    ZeroMemory(raw_sig);
    if(has_reclaim) raw_sig=reclaim_sig;
    else if(has_breakout) raw_sig=breakout_sig;
-   else return;
+   else
+     {
+      XSH_SetLifecycle(g_session,session,XSH_SETUP_WATCHING);
+      if(InpEnableChartPanel)
+         XSH_UpdatePanel(ChartID(),g_symbol,session,panel_regime,current_or,g_daily,XSH_GetSessionBlocker(g_session,session),spread,session_trades,setup_candidate,panel_dir,panel_score,XSH_LifecycleToText(XSH_GetLifecycle(g_session,session)),has_pos);
+      return;
+     }
 
    raw_sig.session=session;
+   panel_dir=(int)raw_sig.direction;
+
+   bool regime_block=false;
+   if(raw_sig.family==XSH_SIGNAL_BREAKOUT && session_class.regime!=XSH_REGIME_CONTINUATION_FAVOR)
+      regime_block=true;
+   if(raw_sig.family==XSH_SIGNAL_RECLAIM && session_class.regime!=XSH_REGIME_REVERSAL_FAVOR && !InpAllowMixedRegimeSignals)
+      regime_block=true;
+   if(regime_block)
+     {
+      reason="Signal family conflicts with session classifier regime";
+      XSH_SetSessionBlocker(g_session,session,reason);
+      XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
+      XSH_Log("INFO",StringFormat("No trade: %s",reason));
+      if(InpEnableChartPanel)
+         XSH_UpdatePanel(ChartID(),g_symbol,session,panel_regime,current_or,g_daily,reason,spread,session_trades,setup_candidate,panel_dir,panel_score,XSH_LifecycleToText(XSH_GetLifecycle(g_session,session)),has_pos);
+      return;
+     }
 
    if(XSH_IsFamilyDirectionUsed(g_session,session,raw_sig.family,raw_sig.direction))
+     {
+      XSH_SetSessionBlocker(g_session,session,"Family+direction already used");
+      XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
       return;
+     }
 
    if(!XSH_SessionDirectionAllowed(g_session,session,raw_sig.direction))
+     {
+      XSH_SetSessionBlocker(g_session,session,"Opposite direction not allowed this session");
+      XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
       return;
+     }
 
    if((raw_sig.direction==XSH_DIR_LONG && !InpEnableLongs) || (raw_sig.direction==XSH_DIR_SHORT && !InpEnableShorts))
+     {
+      XSH_SetSessionBlocker(g_session,session,"Direction disabled by inputs");
+      XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
       return;
+     }
 
    if(InpUseBiasFilter)
      {
-      if(!XSH_BiasAllows(g_symbol,InpContextTF,InpBiasEMAPeriod,raw_sig.direction))
-        {
-         XSH_Log("INFO","Bias filter rejected signal");
-         return;
-        }
+       if(!XSH_BiasAllows(g_symbol,InpContextTF,InpBiasEMAPeriod,raw_sig.direction))
+         {
+          XSH_Log("INFO","Bias filter rejected signal");
+          XSH_SetSessionBlocker(g_session,session,"Bias filter rejected signal");
+          XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
+          return;
+         }
+      }
+
+   XSH_SetupScore score;
+   ZeroMemory(score);
+   int mins_left=XSH_SessionMinutesLeft(TimeCurrent(),session,london_start,ny_start);
+   if(!XSH_ScoreSetup(g_symbol,current_or,session_class,raw_sig,atr_m5,atr_m15,spread,InpMaxSpreadATRFrac,mins_left,atr_m5*InpStopBufferATRFrac,score,reason))
+     {
+      XSH_SetSessionBlocker(g_session,session,reason);
+      XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
+      XSH_Log("INFO",StringFormat("No trade: scoring unavailable (%s)",reason));
+      return;
      }
+   panel_score=score.total;
+   XSH_Log("INFO",StringFormat("Score %s family=%d dir=%d [%s]",setup_candidate,(int)raw_sig.family,(int)raw_sig.direction,score.breakdown));
+
+   string block_reason="";
+   bool duplicate_active=(XSH_GetLifecycle(g_session,session)==XSH_SETUP_ARMED || XSH_GetLifecycle(g_session,session)==XSH_SETUP_ORDER_ACTIVE);
+   if(XSH_ShouldBlockTrade(session_class,score,InpMinSetupScore,mins_left,spread,atr_m5,InpMaxSpreadATRFrac,duplicate_active,block_reason))
+     {
+      XSH_SetSessionBlocker(g_session,session,block_reason);
+      XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
+      XSH_Log("INFO",StringFormat("No trade blocked: %s [%s]",block_reason,score.breakdown));
+      if(InpEnableChartPanel)
+         XSH_UpdatePanel(ChartID(),g_symbol,session,panel_regime,current_or,g_daily,block_reason,spread,session_trades,setup_candidate,panel_dir,panel_score,XSH_LifecycleToText(XSH_GetLifecycle(g_session,session)),has_pos);
+      return;
+     }
+
+   XSH_SetLifecycle(g_session,session,XSH_SETUP_ARMED);
+   XSH_SetActiveSetup(g_session,session,raw_sig.family,raw_sig.direction,score.total);
 
    XSH_Signal trade_sig;
    ZeroMemory(trade_sig);
-   if(!XSH_BuildTradeFromSignal(raw_sig,current_or,atr_m5,trade_sig,reason))
-     {
-      XSH_Log("WARN",StringFormat("Trade build failed: %s",reason));
-      return;
-     }
+    if(!XSH_BuildTradeFromSignal(raw_sig,current_or,atr_m5,trade_sig,reason))
+      {
+       XSH_Log("WARN",StringFormat("Trade build failed: %s",reason));
+       XSH_SetSessionBlocker(g_session,session,reason);
+       XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
+       return;
+      }
 
    double volume=0.0;
-   if(!XSH_CalcVolumeByRisk(g_spec,g_symbol,trade_sig.direction,trade_sig.entry,trade_sig.stop_loss,InpRiskPct,InpAllowMinLotOverride,volume,reason))
-       {
-        XSH_Log("WARN",StringFormat("Sizing blocked: %s",reason));
-        return;
-       }
+    if(!XSH_CalcVolumeByRisk(g_spec,g_symbol,trade_sig.direction,trade_sig.entry,trade_sig.stop_loss,InpRiskPct,InpAllowMinLotOverride,volume,reason))
+        {
+         XSH_Log("WARN",StringFormat("Sizing blocked: %s",reason));
+         XSH_SetSessionBlocker(g_session,session,reason);
+         XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
+         return;
+        }
 
-   string send_reason="";
-   bool ok=XSH_SendMarketOrder(g_spec,InpMagic,trade_sig.direction,volume,trade_sig.stop_loss,trade_sig.take_profit,InpSlippagePoints,trade_sig.reason,send_reason);
-   if(!ok)
-     {
-      XSH_Log("WARN",StringFormat("Order blocked: %s",send_reason));
-      return;
-     }
+    string send_reason="";
+    XSH_SetLifecycle(g_session,session,XSH_SETUP_ORDER_ACTIVE);
+    bool ok=XSH_SendMarketOrder(g_spec,InpMagic,trade_sig.direction,volume,trade_sig.stop_loss,trade_sig.take_profit,InpSlippagePoints,trade_sig.reason,send_reason);
+    if(!ok)
+      {
+       XSH_Log("WARN",StringFormat("Order blocked: %s",send_reason));
+       XSH_SetSessionBlocker(g_session,session,send_reason);
+       XSH_SetLifecycle(g_session,session,XSH_SETUP_INVALIDATED);
+       return;
+      }
 
    XSH_IncSessionTrades(g_session,session);
-   XSH_MarkSessionDirection(g_session,session,trade_sig.direction);
-   XSH_MarkFamilyDirectionUsed(g_session,session,trade_sig.family,trade_sig.direction);
-   XSH_Log("INFO",StringFormat("Opened %s trade family=%d vol=%.2f",
-                                (trade_sig.direction==XSH_DIR_LONG?"LONG":"SHORT"),(int)trade_sig.family,volume));
+    XSH_MarkSessionDirection(g_session,session,trade_sig.direction);
+    XSH_MarkFamilyDirectionUsed(g_session,session,trade_sig.family,trade_sig.direction);
+    XSH_SetLifecycle(g_session,session,XSH_SETUP_POSITION_OPEN);
+    XSH_SetSessionBlocker(g_session,session,"");
+    XSH_Log("INFO",StringFormat("Opened %s trade family=%d vol=%.2f",
+                                 (trade_sig.direction==XSH_DIR_LONG?"LONG":"SHORT"),(int)trade_sig.family,volume));
+
+    if(InpEnableChartPanel)
+       XSH_UpdatePanel(ChartID(),g_symbol,session,panel_regime,current_or,g_daily,XSH_GetSessionBlocker(g_session,session),spread,session_trades,setup_candidate,panel_dir,panel_score,XSH_LifecycleToText(XSH_GetLifecycle(g_session,session)),true);
   }

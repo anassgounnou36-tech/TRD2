@@ -22,6 +22,24 @@ enum XSH_TradeDirection
    XSH_DIR_SHORT=-1
   };
 
+enum XSH_SessionRegime
+  {
+   XSH_REGIME_CONTINUATION_FAVOR=1,
+   XSH_REGIME_REVERSAL_FAVOR=2,
+   XSH_REGIME_NO_TRADE=3
+  };
+
+enum XSH_SetupLifecycleState
+  {
+   XSH_SETUP_NONE=0,
+   XSH_SETUP_WATCHING=1,
+   XSH_SETUP_ARMED=2,
+   XSH_SETUP_ORDER_ACTIVE=3,
+   XSH_SETUP_POSITION_OPEN=4,
+   XSH_SETUP_COMPLETED=5,
+   XSH_SETUP_INVALIDATED=6
+  };
+
 struct XSH_SymbolSpecs
   {
    string symbol;
@@ -50,6 +68,27 @@ struct XSH_OpeningRange
    double low;
    bool sweep_above;
    bool sweep_below;
+  };
+
+struct XSH_SessionClassification
+  {
+   XSH_SessionRegime regime;
+   double or_atr_ratio;
+   double impulse_score;
+   int probes_total;
+   bool both_sides_swept;
+   bool extended;
+  };
+
+struct XSH_SetupScore
+  {
+   double total;
+   double range_quality;
+   double context;
+   double trigger_quality;
+   double execution_quality;
+   double noise_penalty;
+   string breakdown;
   };
 
 struct XSH_Signal
@@ -83,6 +122,16 @@ struct XSH_SessionState
    bool ny_reclaim_short_used;
    bool london_won;
    bool ny_won;
+   XSH_SetupLifecycleState london_lifecycle;
+   XSH_SetupLifecycleState ny_lifecycle;
+   XSH_SignalFamily london_active_family;
+   XSH_SignalFamily ny_active_family;
+   int london_active_direction;
+   int ny_active_direction;
+   double london_last_score;
+   double ny_last_score;
+   string london_blocker_reason;
+   string ny_blocker_reason;
    bool suspend;
    string suspend_reason;
   };

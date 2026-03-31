@@ -25,6 +25,16 @@ void XSH_ResetSessionState(XSH_SessionState &st)
    st.ny_reclaim_short_used=false;
    st.london_won=false;
    st.ny_won=false;
+   st.london_lifecycle=XSH_SETUP_NONE;
+   st.ny_lifecycle=XSH_SETUP_NONE;
+   st.london_active_family=XSH_SIGNAL_NONE;
+   st.ny_active_family=XSH_SIGNAL_NONE;
+   st.london_active_direction=0;
+   st.ny_active_direction=0;
+   st.london_last_score=0.0;
+   st.ny_last_score=0.0;
+   st.london_blocker_reason="";
+   st.ny_blocker_reason="";
    st.suspend=false;
    st.suspend_reason="";
   }
