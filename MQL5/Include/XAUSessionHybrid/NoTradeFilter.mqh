@@ -12,6 +12,8 @@ bool XSH_ShouldBlockTrade(const XSH_SessionClassification &classification,
                           const double spread,
                           const double atr_m5,
                           const double max_spread_atr_frac,
+                          const double recent_spread_median,
+                          const double spread_median_mult_threshold,
                           const bool duplicate_active_setup,
                           string &reason)
   {
@@ -29,11 +31,18 @@ bool XSH_ShouldBlockTrade(const XSH_SessionClassification &classification,
       return true;
      }
 
-   if(atr_m5>0.0 && spread>atr_m5*max_spread_atr_frac)
-     {
-      reason="Spread too high for ATR";
-      return true;
-     }
+   if(atr_m5>0.0)
+      {
+       double spread_atr_ratio=spread/atr_m5;
+       double spread_median_ratio=(recent_spread_median>0.0?spread/recent_spread_median:0.0);
+       if(spread_atr_ratio>max_spread_atr_frac &&
+          (recent_spread_median<=0.0 || spread_median_ratio>spread_median_mult_threshold))
+         {
+          reason=StringFormat("Spread too high: spread=%.2f atr=%.2f ratio=%.4f median=%.2f median_ratio=%.2f thr=%.4f/%.2f",
+                              spread,atr_m5,spread_atr_ratio,recent_spread_median,spread_median_ratio,max_spread_atr_frac,spread_median_mult_threshold);
+          return true;
+         }
+      }
 
    if(score.total<min_setup_score)
      {

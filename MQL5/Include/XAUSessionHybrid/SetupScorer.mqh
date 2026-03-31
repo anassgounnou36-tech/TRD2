@@ -53,6 +53,7 @@ bool XSH_ScoreSetup(const string symbol,
 
    if(classification.regime==XSH_REGIME_CONTINUATION_FAVOR && signal.family==XSH_SIGNAL_BREAKOUT) out_score.context=20.0;
    else if(classification.regime==XSH_REGIME_REVERSAL_FAVOR && signal.family==XSH_SIGNAL_RECLAIM) out_score.context=20.0;
+   else if(classification.regime==XSH_REGIME_MIXED) out_score.context=12.0;
    else if(classification.regime==XSH_REGIME_NO_TRADE) out_score.context=0.0;
    else out_score.context=8.0;
 

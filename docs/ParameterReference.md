@@ -18,7 +18,9 @@
 
 ## Core quality filters
 - ATR and OR bounds: `InpATRPeriod`, `InpMinRangeATRFrac`, `InpMaxRangeATRFrac`, `InpMinRangeSpreadMult`
+- Adaptive OR width context: `InpORStatsLookbackSessions`, `InpORStatsExtremeFrac`
 - Spread filter: `InpMaxSpreadATRFrac`
+- Adaptive spread context: `InpSpreadStatsLookbackBars`, `InpSpreadMedianMultThreshold`
 - Optional manual blocks: `InpUseNewsBlockWindows`, `InpManualBlockWindows`
 
 ## Session classifier (v2)
@@ -27,9 +29,11 @@
 - `InpMaxExtensionATRFrac`
 - Classifier outputs continuation / reversal / no-trade regime.
 
-## Setup scoring (v2)
-- `InpMinSetupScore` (balanced default: `65`)
+## Setup scoring (v3 calibration)
+- `InpMinSetupScore` (balanced default: `62`)
 - Score threshold is the main quality gate.
+- Near-threshold rejection logging band: `InpNearThresholdLogBand`
+- Regime conflict/mixed score gates: `InpMixedModeScoreThreshold`, `InpConflictOverrideScoreThreshold`
 
 ## Breakout quality (v2)
 - `InpBreakoutBufferATRFrac`

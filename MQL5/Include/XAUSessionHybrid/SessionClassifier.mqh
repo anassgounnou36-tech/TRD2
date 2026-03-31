@@ -9,6 +9,9 @@ const double XSH_CLASSIFIER_DIR_BONUS=0.5;
 const double XSH_CLASSIFIER_OR_MIN=0.25;
 const double XSH_CLASSIFIER_OR_MAX=1.35;
 const double XSH_CLASSIFIER_IMPULSE_MIN=0.70;
+const double XSH_CLASSIFIER_OR_EXTREME_LOW_MULT=0.80;
+const double XSH_CLASSIFIER_OR_EXTREME_HIGH_MULT=1.20;
+const double XSH_CLASSIFIER_EXTENSION_EXTREME_MULT=1.35;
 
 bool XSH_ReadSessionProbeStats(const string symbol,
                                const XSH_OpeningRange &or_state,
@@ -142,16 +145,27 @@ bool XSH_ClassifySession(const string symbol,
      }
 
    if(or_ok && directional_expansion && aligned && !classification.extended)
+      {
+       classification.regime=XSH_REGIME_CONTINUATION_FAVOR;
+       reason="Directional expansion + M15 alignment";
+       return true;
+      }
+
+   bool or_extreme_low=(classification.or_atr_ratio<XSH_CLASSIFIER_OR_MIN*XSH_CLASSIFIER_OR_EXTREME_LOW_MULT);
+   bool or_extreme_high=(classification.or_atr_ratio>XSH_CLASSIFIER_OR_MAX*XSH_CLASSIFIER_OR_EXTREME_HIGH_MULT);
+   bool extension_extreme=(extension>max_extension_atr_frac*XSH_CLASSIFIER_EXTENSION_EXTREME_MULT);
+   if(or_extreme_low || or_extreme_high || extension_extreme)
      {
-      classification.regime=XSH_REGIME_CONTINUATION_FAVOR;
-      reason="Directional expansion + M15 alignment";
+      classification.regime=XSH_REGIME_NO_TRADE;
+      if(or_extreme_low || or_extreme_high) reason="OR quality outside extreme ATR band";
+      else reason="Price too extended from OR midpoint";
       return true;
      }
 
-   classification.regime=XSH_REGIME_NO_TRADE;
-   if(!or_ok) reason="OR quality outside ATR band";
-   else if(classification.extended) reason="Price too extended from OR midpoint";
-   else reason="Session structure not selective";
+   classification.regime=XSH_REGIME_MIXED;
+   if(!or_ok) reason="Mixed structure: OR quality outside preferred ATR band";
+   else if(classification.extended) reason="Mixed structure: extension elevated";
+   else reason="Mixed structure: selective but non-directional";
 
    return true;
   }
