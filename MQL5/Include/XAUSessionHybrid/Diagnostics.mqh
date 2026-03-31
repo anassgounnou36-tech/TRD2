@@ -3,6 +3,10 @@
 
 #include <XAUSessionHybrid/Types.mqh>
 
+const string XSH_REASON_TOKEN_OR_TOO_WIDE="OR TOO WIDE";
+const string XSH_REASON_TOKEN_SPREAD="SPREAD";
+const string XSH_REASON_TOKEN_REGIME_CONFLICT="CONFLICTS WITH SESSION CLASSIFIER REGIME";
+
 string XSH_BuildHealthLine(const bool ok,const string msg)
   {
    return StringFormat("[%s] %s",(ok?"OK":"BLOCK"),msg);
@@ -28,9 +32,9 @@ void XSH_CountBlockReason(XSH_DiagnosticsCounters &counters,const string reason)
   {
    string reason_upper=reason;
    StringToUpper(reason_upper);
-   if(StringFind(reason_upper,"OR TOO WIDE",0)>=0) counters.blocked_or_too_wide++;
-   if(StringFind(reason_upper,"SPREAD",0)>=0) counters.blocked_spread++;
-   if(StringFind(reason_upper,"CONFLICTS WITH SESSION CLASSIFIER REGIME",0)>=0) counters.blocked_classifier_conflict++;
+   if(StringFind(reason_upper,XSH_REASON_TOKEN_OR_TOO_WIDE,0)>=0) counters.blocked_or_too_wide++;
+   if(StringFind(reason_upper,XSH_REASON_TOKEN_SPREAD,0)>=0) counters.blocked_spread++;
+   if(StringFind(reason_upper,XSH_REASON_TOKEN_REGIME_CONFLICT,0)>=0) counters.blocked_classifier_conflict++;
   }
 
 void XSH_LogDiagnosticsSummary(const XSH_DiagnosticsCounters &counters)

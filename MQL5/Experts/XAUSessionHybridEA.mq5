@@ -34,6 +34,9 @@ int g_last_day_tag=0;
 bool g_london_seen_today=false;
 bool g_ny_seen_today=false;
 
+const int XSH_MIN_OR_STATS_SESSIONS=3;
+const double XSH_MIXED_MODE_STRICT_BONUS=2.0;
+
 bool XSH_IsSupportedGoldSymbol(const string symbol_name)
   {
    string s=symbol_name;
@@ -172,7 +175,7 @@ bool XSH_ReadSessionORStats(const string symbol,
       found++;
      }
 
-   if(found<3) return false;
+   if(found<XSH_MIN_OR_STATS_SESSIONS) return false;
    double sum=0.0;
    for(int i=0;i<found;i++) sum+=ranges[i];
    or_avg=sum/found;
@@ -199,7 +202,7 @@ bool XSH_IsRegimeFamilyScoreAllowed(const XSH_SessionRegime regime,
      {
       double mixed_threshold=mixed_mode_score_threshold;
       if(!allow_mixed_regime_signals)
-         mixed_threshold=MathMax(mixed_threshold,min_setup_score+2.0);
+         mixed_threshold=MathMax(mixed_threshold,min_setup_score+XSH_MIXED_MODE_STRICT_BONUS);
       if(score_total>=mixed_threshold) return true;
       reason=StringFormat("Signal/regime mixed requires higher score: total=%.1f threshold=%.1f",score_total,mixed_threshold);
       return false;

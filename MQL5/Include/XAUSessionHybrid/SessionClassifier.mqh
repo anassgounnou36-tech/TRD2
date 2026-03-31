@@ -9,6 +9,9 @@ const double XSH_CLASSIFIER_DIR_BONUS=0.5;
 const double XSH_CLASSIFIER_OR_MIN=0.25;
 const double XSH_CLASSIFIER_OR_MAX=1.35;
 const double XSH_CLASSIFIER_IMPULSE_MIN=0.70;
+const double XSH_CLASSIFIER_OR_EXTREME_LOW_MULT=0.80;
+const double XSH_CLASSIFIER_OR_EXTREME_HIGH_MULT=1.20;
+const double XSH_CLASSIFIER_EXTENSION_EXTREME_MULT=1.35;
 
 bool XSH_ReadSessionProbeStats(const string symbol,
                                const XSH_OpeningRange &or_state,
@@ -148,9 +151,9 @@ bool XSH_ClassifySession(const string symbol,
        return true;
       }
 
-   bool or_extreme_low=(classification.or_atr_ratio<XSH_CLASSIFIER_OR_MIN*0.80);
-   bool or_extreme_high=(classification.or_atr_ratio>XSH_CLASSIFIER_OR_MAX*1.20);
-   bool extension_extreme=(extension>max_extension_atr_frac*1.35);
+   bool or_extreme_low=(classification.or_atr_ratio<XSH_CLASSIFIER_OR_MIN*XSH_CLASSIFIER_OR_EXTREME_LOW_MULT);
+   bool or_extreme_high=(classification.or_atr_ratio>XSH_CLASSIFIER_OR_MAX*XSH_CLASSIFIER_OR_EXTREME_HIGH_MULT);
+   bool extension_extreme=(extension>max_extension_atr_frac*XSH_CLASSIFIER_EXTENSION_EXTREME_MULT);
    if(or_extreme_low || or_extreme_high || extension_extreme)
      {
       classification.regime=XSH_REGIME_NO_TRADE;
