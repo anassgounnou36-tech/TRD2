@@ -324,15 +324,16 @@ void OnTick()
    if(session==XSH_SESSION_NONE && InpFlattenAtSessionEnd)
       XSH_FlattenAtSessionEnd(g_spec,InpMagic);
 
-   XSH_OpeningRange *or_ref=XSH_GetORRef(g_session,session);
-   XSH_OpeningRange empty_or;
-   ZeroMemory(empty_or);
-
-   if(or_ref!=NULL)
-     {
-      datetime start=(session==XSH_SESSION_LONDON?london_start:ny_start);
-      XSH_BuildOpeningRange(g_symbol,PERIOD_M5,TimeCurrent(),start,session==XSH_SESSION_LONDON?InpLondonRangeMinutes:InpNYRangeMinutes,*or_ref);
-     }
+   XSH_OpeningRange current_or;
+   ZeroMemory(current_or);
+   bool has_or=false;
+   if(session!=XSH_SESSION_NONE)
+      {
+       has_or=XSH_GetOpeningRange(g_session,session,current_or);
+       datetime start=(session==XSH_SESSION_LONDON?london_start:ny_start);
+       XSH_BuildOpeningRange(g_symbol,PERIOD_M5,TimeCurrent(),start,session==XSH_SESSION_LONDON?InpLondonRangeMinutes:InpNYRangeMinutes,current_or);
+       XSH_SetOpeningRange(g_session,session,current_or);
+      }
 
    string blocker="";
    if(g_session.suspend) blocker=g_session.suspend_reason;
@@ -352,20 +353,20 @@ void OnTick()
    if(g_session.suspend)
      {
       if(InpEnableChartPanel)
-         XSH_UpdatePanel(ChartID(),g_symbol,session,(or_ref!=NULL?*or_ref:empty_or),g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
+         XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
       return;
      }
    if(!XSH_CheckDailyGuards(g_daily,InpMaxDailyLossPct,InpMaxTradesPerDay,InpEnableDailyProfitLock,InpDailyProfitLockR,InpRiskPct,InpDailyLossUseEquity))
      {
-      blocker=g_daily.block_reason;
-      if(InpEnableChartPanel)
-         XSH_UpdatePanel(ChartID(),g_symbol,session,(or_ref!=NULL?*or_ref:empty_or),g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
-      return;
-     }
+       blocker=g_daily.block_reason;
+       if(InpEnableChartPanel)
+         XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
+       return;
+      }
    if(has_pos || session==XSH_SESSION_NONE || XSH_GetSessionTrades(g_session,session)>=InpMaxTradesPerSession)
      {
       if(InpEnableChartPanel)
-         XSH_UpdatePanel(ChartID(),g_symbol,session,(or_ref!=NULL?*or_ref:empty_or),g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
+         XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
       return;
      }
 
@@ -373,20 +374,20 @@ void OnTick()
       (session==XSH_SESSION_NEWYORK && !XSH_IsInWindow(TimeCurrent(),ny_start,InpNYTradeMinutes)))
      {
       if(InpEnableChartPanel)
-         XSH_UpdatePanel(ChartID(),g_symbol,session,(or_ref!=NULL?*or_ref:empty_or),g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
+         XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
       return;
      }
 
-   if(or_ref==NULL || !or_ref->built)
+   if(!has_or || !current_or.built)
      {
       if(InpEnableChartPanel)
-         XSH_UpdatePanel(ChartID(),g_symbol,session,(or_ref!=NULL?*or_ref:empty_or),g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
+         XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
       return;
      }
 
    double atr_m5=0.0,atr_m15=0.0;
    string reason="";
-   if(!XSH_PreTradeFilters(session,*or_ref,atr_m5,atr_m15,reason))
+   if(!XSH_PreTradeFilters(session,current_or,atr_m5,atr_m15,reason))
      {
       XSH_Log("INFO",StringFormat("No trade: %s",reason));
       return;
@@ -397,13 +398,13 @@ void OnTick()
    ZeroMemory(reclaim_sig);
    ZeroMemory(breakout_sig);
 
-   bool has_reclaim=XSH_DetectReclaim(g_symbol,*or_ref,InpReclaimBodyStrengthFrac,reclaim_sig);
-   bool has_breakout=XSH_DetectBreakout(g_symbol,*or_ref,atr_m5,InpBreakoutBufferATRFrac,breakout_sig);
+   bool has_reclaim=XSH_DetectReclaim(g_symbol,current_or,InpReclaimBodyStrengthFrac,reclaim_sig);
+   bool has_breakout=XSH_DetectBreakout(g_symbol,current_or,atr_m5,InpBreakoutBufferATRFrac,breakout_sig);
    if(has_reclaim) setup_candidate=(reclaim_sig.direction==XSH_DIR_LONG?"RECLAIM_LONG":"RECLAIM_SHORT");
    else if(has_breakout) setup_candidate=(breakout_sig.direction==XSH_DIR_LONG?"BREAKOUT_LONG":"BREAKOUT_SHORT");
 
    if(InpEnableChartPanel)
-      XSH_UpdatePanel(ChartID(),g_symbol,session,*or_ref,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
+      XSH_UpdatePanel(ChartID(),g_symbol,session,current_or,g_daily,blocker,spread,session_trades,setup_candidate,has_pos);
 
    XSH_Signal raw_sig;
    ZeroMemory(raw_sig);
@@ -433,7 +434,7 @@ void OnTick()
 
    XSH_Signal trade_sig;
    ZeroMemory(trade_sig);
-   if(!XSH_BuildTradeFromSignal(raw_sig,*or_ref,atr_m5,trade_sig,reason))
+   if(!XSH_BuildTradeFromSignal(raw_sig,current_or,atr_m5,trade_sig,reason))
      {
       XSH_Log("WARN",StringFormat("Trade build failed: %s",reason));
       return;
@@ -441,10 +442,10 @@ void OnTick()
 
    double volume=0.0;
    if(!XSH_CalcVolumeByRisk(g_spec,g_symbol,trade_sig.direction,trade_sig.entry,trade_sig.stop_loss,InpRiskPct,InpAllowMinLotOverride,volume,reason))
-      {
-       XSH_Log("WARN",StringFormat("Sizing blocked: %s",reason));
-      return;
-      }
+       {
+        XSH_Log("WARN",StringFormat("Sizing blocked: %s",reason));
+        return;
+       }
 
    string send_reason="";
    bool ok=XSH_SendMarketOrder(g_spec,InpMagic,trade_sig.direction,volume,trade_sig.stop_loss,trade_sig.take_profit,InpSlippagePoints,trade_sig.reason,send_reason);
