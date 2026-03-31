@@ -51,4 +51,28 @@ input double InpMaxSpreadATRFrac = 0.12;
 input bool   InpUseNewsBlockWindows = false;
 input string InpManualBlockWindows = "";
 
+input double InpMinSetupScore = 65.0;
+input bool   InpAllowMixedRegimeSignals = false;
+input int    InpClassifierProbeLookbackBars = 12;
+input int    InpMaxORProbesBeforeBlock = 4;
+input double InpMaxExtensionATRFrac = 2.0;
+
+input double InpBreakoutMinBodyRangeFrac = 0.50;
+input double InpBreakoutMinBodyATRFrac = 0.20;
+input double InpBreakoutMaxCounterWickFrac = 0.60;
+input bool   InpUseBreakoutRetest = false;
+input int    InpBreakoutRetestMaxBars = 3;
+input double InpBreakoutRetestToleranceATRFrac = 0.15;
+input double InpMaxBreakoutATRFrac = 0.90;
+
+input double InpReclaimMinSweepATRFrac = 0.12;
+input double InpReclaimMinSweepSpreadMult = 1.50;
+input double InpReclaimCloseBackATRFrac = 0.05;
+input int    InpReclaimMaxBarsAfterSweep = 4;
+input double InpReclaimMaxCounterWickFrac = 0.70;
+
+input int    InpMinTrailStepPoints = 120;
+input double InpTrailOnlyAfterR = 1.0;
+input bool   InpUseStructureTrail = true;
+
 #endif

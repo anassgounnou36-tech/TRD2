@@ -38,7 +38,10 @@ void XSH_ManageOpenPosition(const XSH_SymbolSpecs &spec,
                             const double trail_atr_frac,
                             const int atr_period,
                             const bool move_to_be,
-                            const int max_hold_minutes)
+                            const int max_hold_minutes,
+                            const int min_trail_step_points,
+                            const double trail_only_after_r,
+                            const bool use_structure_trail)
   {
    int total=PositionsTotal();
    datetime now=TimeCurrent();
@@ -67,34 +70,49 @@ void XSH_ManageOpenPosition(const XSH_SymbolSpecs &spec,
 
       double risk=MathAbs(open-sl);
       if(risk<=0.0) continue;
+      double progress_r=(ptype==POSITION_TYPE_BUY?(cur-open)/risk:(open-cur)/risk);
+
       if(move_to_be)
         {
-         double target=(ptype==POSITION_TYPE_BUY?open+risk*tp1_r:open-risk*tp1_r);
-         bool reached=(ptype==POSITION_TYPE_BUY?cur>=target:cur<=target);
-         if(reached)
-            XSH_ModifySLSafe(spec,ticket,open,tp);
+         bool reached=(progress_r>=tp1_r);
+         bool be_already=(ptype==POSITION_TYPE_BUY?sl>=open:sl<=open);
+         if(reached && !be_already)
+             XSH_ModifySLSafe(spec,ticket,open,tp);
         }
 
       double atr_m5=0.0;
-      if(trail_atr_frac>0.0 && XSH_ReadATR(spec.symbol,PERIOD_M5,atr_period,1,atr_m5))
+      if(trail_atr_frac>0.0 && progress_r>=trail_only_after_r && XSH_ReadATR(spec.symbol,PERIOD_M5,atr_period,1,atr_m5))
         {
          double trail_dist=atr_m5*trail_atr_frac;
          if(trail_dist>0.0)
            {
-            double proposed_sl=sl;
-            if(ptype==POSITION_TYPE_BUY)
-              {
-               double candidate=cur-trail_dist;
-               if(candidate>sl) proposed_sl=candidate;
-              }
-            else
-              {
-               double candidate=cur+trail_dist;
-               if(candidate<sl || sl<=0.0) proposed_sl=candidate;
-              }
-            if(MathAbs(proposed_sl-sl)>spec.point)
-               XSH_ModifySLSafe(spec,ticket,proposed_sl,tp);
-           }
+             double proposed_sl=sl;
+             double min_step=spec.point*MathMax(1,min_trail_step_points);
+             if(ptype==POSITION_TYPE_BUY)
+               {
+                double candidate=cur-trail_dist;
+                if(use_structure_trail)
+                  {
+                   double swing_low[];
+                   if(CopyLow(spec.symbol,PERIOD_M5,2,1,swing_low)==1)
+                      candidate=MathMax(candidate,swing_low[0]-spec.point*2.0);
+                  }
+                if(candidate>sl) proposed_sl=candidate;
+               }
+             else
+               {
+                double candidate=cur+trail_dist;
+                if(use_structure_trail)
+                  {
+                   double swing_high[];
+                   if(CopyHigh(spec.symbol,PERIOD_M5,2,1,swing_high)==1)
+                      candidate=MathMin(candidate,swing_high[0]+spec.point*2.0);
+                  }
+                if(candidate<sl || sl<=0.0) proposed_sl=candidate;
+               }
+             if(MathAbs(proposed_sl-sl)>=min_step)
+                XSH_ModifySLSafe(spec,ticket,proposed_sl,tp);
+            }
         }
      }
   }

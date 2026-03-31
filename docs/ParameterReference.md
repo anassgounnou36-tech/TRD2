@@ -16,28 +16,55 @@
 - London: `InpLondonStartHour`, `InpLondonStartMinute`, `InpLondonRangeMinutes`, `InpLondonTradeMinutes`
 - New York: `InpNYStartHour`, `InpNYStartMinute`, `InpNYRangeMinutes`, `InpNYTradeMinutes`
 
-## Signal quality
-- ATR period and range bounds (`InpATRPeriod`, `InpMinRangeATRFrac`, `InpMaxRangeATRFrac`)
-- Spread/range floor via `InpMinRangeSpreadMult`
-- Breakout and stop buffers via ATR fractions
-- Reclaim body strength fraction
-- Optional EMA bias (`InpUseBiasFilter`, `InpBiasEMAPeriod`)
+## Core quality filters
+- ATR and OR bounds: `InpATRPeriod`, `InpMinRangeATRFrac`, `InpMaxRangeATRFrac`, `InpMinRangeSpreadMult`
+- Spread filter: `InpMaxSpreadATRFrac`
+- Optional manual blocks: `InpUseNewsBlockWindows`, `InpManualBlockWindows`
+
+## Session classifier (v2)
+- `InpClassifierProbeLookbackBars`
+- `InpMaxORProbesBeforeBlock`
+- `InpMaxExtensionATRFrac`
+- Classifier outputs continuation / reversal / no-trade regime.
+
+## Setup scoring (v2)
+- `InpMinSetupScore` (balanced default: `65`)
+- Score threshold is the main quality gate.
+
+## Breakout quality (v2)
+- `InpBreakoutBufferATRFrac`
+- `InpBreakoutMinBodyRangeFrac`
+- `InpBreakoutMinBodyATRFrac`
+- `InpBreakoutMaxCounterWickFrac`
+- `InpMaxBreakoutATRFrac`
+- Optional retest controls:
+  - `InpUseBreakoutRetest`
+  - `InpBreakoutRetestMaxBars`
+  - `InpBreakoutRetestToleranceATRFrac`
+
+## Reclaim quality (v2)
+- `InpReclaimBodyStrengthFrac`
+- `InpReclaimMinSweepATRFrac`
+- `InpReclaimMinSweepSpreadMult`
+- `InpReclaimCloseBackATRFrac`
+- `InpReclaimMaxBarsAfterSweep`
+- `InpReclaimMaxCounterWickFrac`
+- Mixed regime override: `InpAllowMixedRegimeSignals`
 
 ## Risk
 - `InpRiskPct`
 - `InpMaxDailyLossPct`
 - `InpMaxTradesPerDay`
 - `InpMaxTradesPerSession`
-- Profit lock controls (`InpEnableDailyProfitLock`, `InpDailyProfitLockR`)
+- Profit lock controls: `InpEnableDailyProfitLock`, `InpDailyProfitLockR`
+- `InpAllowMinLotOverride`
 
-## Exits
+## Exits / management (v2)
 - `InpTP1_R`, `InpTP2_R`
-- `InpTrailATRFrac` (active ATR trailing-stop distance fraction on M5)
+- `InpTrailATRFrac`
+- `InpMoveToBEAfterTP1`
+- `InpMinTrailStepPoints`
+- `InpTrailOnlyAfterR`
+- `InpUseStructureTrail`
 - `InpMaxHoldMinutes`
 - `InpFlattenAtSessionEnd`
-- `InpMoveToBEAfterTP1`
-
-## Filters
-- `InpMaxSpreadATRFrac`
-- `InpUseNewsBlockWindows`
-- `InpManualBlockWindows` format: `HH:MM-HH:MM;HH:MM-HH:MM`

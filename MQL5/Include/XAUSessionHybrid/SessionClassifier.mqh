@@ -1,0 +1,145 @@
+#ifndef XSH_SESSION_CLASSIFIER_MQH
+#define XSH_SESSION_CLASSIFIER_MQH
+
+#include <XAUSessionHybrid/Types.mqh>
+#include <XAUSessionHybrid/IndicatorEngine.mqh>
+
+bool XSH_ReadSessionProbeStats(const string symbol,
+                               const XSH_OpeningRange &or_state,
+                               const int lookback_bars,
+                               int &probes_above,
+                               int &probes_below,
+                               bool &both_sides_swept)
+  {
+   probes_above=0;
+   probes_below=0;
+   both_sides_swept=false;
+   if(!or_state.built || lookback_bars<1) return false;
+
+   double highs[],lows[];
+   if(CopyHigh(symbol,PERIOD_M5,1,lookback_bars,highs)!=lookback_bars) return false;
+   if(CopyLow(symbol,PERIOD_M5,1,lookback_bars,lows)!=lookback_bars) return false;
+
+   bool seen_above=false,seen_below=false;
+   for(int i=0;i<lookback_bars;i++)
+     {
+      if(highs[i]>or_state.high)
+        {
+         probes_above++;
+         seen_above=true;
+        }
+      if(lows[i]<or_state.low)
+        {
+         probes_below++;
+         seen_below=true;
+        }
+     }
+   both_sides_swept=(seen_above && seen_below);
+   return true;
+  }
+
+bool XSH_ClassifySession(const string symbol,
+                         const XSH_OpeningRange &or_state,
+                         const double atr_m5,
+                         const double atr_m15,
+                         const int ema_period,
+                         const int probe_lookback_bars,
+                         const int max_probes,
+                         const double max_extension_atr_frac,
+                         XSH_SessionClassification &classification,
+                         string &reason)
+  {
+   reason="";
+   classification.regime=XSH_REGIME_NO_TRADE;
+   classification.or_atr_ratio=0.0;
+   classification.impulse_score=0.0;
+   classification.probes_total=0;
+   classification.both_sides_swept=false;
+   classification.extended=false;
+
+   if(!or_state.built || atr_m5<=0.0 || atr_m15<=0.0)
+     {
+      reason="Classifier data invalid";
+      return false;
+     }
+
+   double o1[],c1[],h1[],l1[],o2[],c2[],h2[],l2[];
+   if(CopyOpen(symbol,PERIOD_M5,1,1,o1)!=1 || CopyClose(symbol,PERIOD_M5,1,1,c1)!=1 || CopyHigh(symbol,PERIOD_M5,1,1,h1)!=1 || CopyLow(symbol,PERIOD_M5,1,1,l1)!=1)
+     {
+      reason="Classifier bar-1 unavailable";
+      return false;
+     }
+   if(CopyOpen(symbol,PERIOD_M5,2,1,o2)!=1 || CopyClose(symbol,PERIOD_M5,2,1,c2)!=1 || CopyHigh(symbol,PERIOD_M5,2,1,h2)!=1 || CopyLow(symbol,PERIOD_M5,2,1,l2)!=1)
+     {
+      reason="Classifier bar-2 unavailable";
+      return false;
+     }
+
+   int probes_above=0,probes_below=0;
+   bool both_sides=false;
+   XSH_ReadSessionProbeStats(symbol,or_state,probe_lookback_bars,probes_above,probes_below,both_sides);
+   classification.probes_total=probes_above+probes_below;
+   classification.both_sides_swept=both_sides;
+
+   double or_range=or_state.high-or_state.low;
+   double or_mid=(or_state.high+or_state.low)*0.5;
+   classification.or_atr_ratio=(atr_m15>0.0?or_range/atr_m15:0.0);
+
+   double body1=MathAbs(c1[0]-o1[0]);
+   double body2=MathAbs(c2[0]-o2[0]);
+   double dir1=(c1[0]>=o1[0]?1.0:-1.0);
+   double dir2=(c2[0]>=o2[0]?1.0:-1.0);
+   double same_dir=(dir1==dir2?1.0:0.0);
+   classification.impulse_score=(body1+body2)/(atr_m5*2.0) + same_dir*0.5;
+
+   double ema_now=0.0,ema_prev=0.0;
+   if(!XSH_ReadEMA(symbol,PERIOD_M15,ema_period,1,ema_now) || !XSH_ReadEMA(symbol,PERIOD_M15,ema_period,2,ema_prev))
+     {
+      reason="Classifier EMA unavailable";
+      return false;
+     }
+   double bias_slope=ema_now-ema_prev;
+
+   double close_now=c1[0];
+   double extension=MathAbs(close_now-or_mid)/(atr_m5>0.0?atr_m5:1.0);
+   classification.extended=(extension>max_extension_atr_frac);
+
+   bool or_ok=(classification.or_atr_ratio>=0.25 && classification.or_atr_ratio<=1.35);
+   bool directional_expansion=(classification.impulse_score>=0.70 && same_dir>0.0);
+   bool trend_up=(close_now>=ema_now && bias_slope>=0.0);
+   bool trend_down=(close_now<=ema_now && bias_slope<=0.0);
+   bool aligned=(trend_up || trend_down);
+   bool too_many_probes=(classification.probes_total>max_probes);
+
+   if(both_sides || too_many_probes)
+     {
+      classification.regime=XSH_REGIME_NO_TRADE;
+      reason=(both_sides?"Both OR sides swept recently":"Too many OR probes");
+      return true;
+     }
+
+   bool sweep_signature=(h1[0]>or_state.high || l1[0]<or_state.low || h2[0]>or_state.high || l2[0]<or_state.low);
+
+   if(sweep_signature && !directional_expansion)
+     {
+      classification.regime=XSH_REGIME_REVERSAL_FAVOR;
+      reason="Sweep-like behavior favors reclaim";
+      return true;
+     }
+
+   if(or_ok && directional_expansion && aligned && !classification.extended)
+     {
+      classification.regime=XSH_REGIME_CONTINUATION_FAVOR;
+      reason="Directional expansion + M15 alignment";
+      return true;
+     }
+
+   classification.regime=XSH_REGIME_NO_TRADE;
+   if(!or_ok) reason="OR quality outside ATR band";
+   else if(classification.extended) reason="Price too extended from OR midpoint";
+   else reason="Session structure not selective";
+
+   return true;
+  }
+
+#endif
